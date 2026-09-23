@@ -20,3 +20,12 @@ build/
 # Antigravity & AI scratch files
 .gemini/
 scratch/
+
+# Python & Databases
+__pycache__/
+*.pyc
+*.db
+.pytest_cache/
+*/static/uploads/*.jpg
+*/static/uploads/*.jpeg
+*/static/uploads/*.png
