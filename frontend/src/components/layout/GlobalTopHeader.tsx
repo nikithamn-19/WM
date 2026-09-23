@@ -30,7 +30,7 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
         </Link>
       </div>
 
-      {/* Centered Navigation Tabs (As styled in PDF Design Report) */}
+      {/* Centered Navigation Tabs: Plan, Propose & Resolve, Chat, Memories */}
       <nav className="flex items-center gap-6 sm:gap-8">
         {!isInsideTrip ? (
           /* Global Navigation Tabs */
@@ -46,9 +46,9 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
               My Trips
             </Link>
             <Link
-              to="/solo"
+              to="/solo-matches"
               className={`font-sans text-sm sm:text-base font-semibold transition-all py-1 border-b-2 ${
-                isActive('/solo')
+                isActive('/solo-matches') || isActive('/solo')
                   ? 'border-route text-route'
                   : 'border-transparent text-slate hover:text-ink'
               }`}
@@ -57,7 +57,7 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
             </Link>
           </>
         ) : (
-          /* Active Trip Navigation Tabs (PDF Flow: Plan, Propose & Resolve, Chat, Memories) */
+          /* Active Trip Navigation Tabs: Plan, Propose & Resolve, Chat, Memories */
           <>
             <Link
               to={`/trips/${trpId}`}
@@ -70,9 +70,9 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
               Plan
             </Link>
             <Link
-              to={`/trips/${trpId}/branches/itm_b4`}
+              to={`/trips/${trpId}/slots/itm_b94582f9`}
               className={`font-sans text-sm sm:text-base font-semibold transition-all py-1 border-b-2 ${
-                location.pathname.includes('/branches')
+                location.pathname.includes('/branches') || location.pathname.includes('/slots')
                   ? 'border-route text-route'
                   : 'border-transparent text-slate hover:text-ink'
               }`}
@@ -117,10 +117,10 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
           className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-paper border border-slate-light text-xs font-mono text-ink hover:border-route transition-all"
         >
           <div className="w-6 h-6 rounded-full bg-route text-card text-[10px] font-mono font-bold flex items-center justify-center">
-            {currentUser?.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'ME'}
+            {currentUser?.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'N'}
           </div>
           <span className="hidden sm:inline font-sans text-xs font-medium">
-            {currentUser?.displayName || 'Alex Chen'}
+            {currentUser?.displayName || 'Nikitha'}
           </span>
         </Link>
       </div>

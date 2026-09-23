@@ -1,241 +1,410 @@
 import React, { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { useTripContext } from '../context/TripContext'
+import { ProposeActivityModal } from './ProposeActivityModal'
 
-export interface ProposalOption {
-  id: string
-  tag: 'INITIAL PLAN' | 'AI SUGGESTION' | 'MEMBER PROPOSAL'
-  title: string
-  whyCreated: string
-  yesVotes: number
-  noVotes: number
-  userVote?: 'yes' | 'no'
+export interface ProposalVote {
+  usrId: string
+  vote: 'yes' | 'no' | 'abstain'
+  comment?: string
 }
 
+export interface ProposalItem {
+  prpId: string
+  actionType: 'Add' | 'Replace' | 'Remove'
+  title: string
+  status: 'accepted' | 'proposed' | 'in_consensus' | 'rejected'
+  rationale: string
+  proposedBy: string
+  costDelta: string
+  currency: string
+  votes: ProposalVote[]
+  userVote?: 'yes' | 'no' | 'abstain'
+}
+
+const QUICK_OBJECTIONS = [
+  'Only if we skip the museum',
+  'Too crowded and noisy during midday',
+  'Budget delta is too high for this slot',
+  'Sun is too harsh; prefer shaded indoor activity',
+  'Clashes with scheduled lunch booking',
+  'Too far from hotel',
+]
+
 export const BranchViewScreen: React.FC = () => {
-  const { trpId = 'trp_goa_2026' } = useParams()
-  const navigate = useNavigate()
+  const { trpId = 'trp_098ba70a', itmId = 'itm_b94582f9' } = useParams()
   const { addToast } = useTripContext()
 
-  const [options, setOptions] = useState<ProposalOption[]>([
+  const [isProposeOpen, setIsProposeOpen] = useState(false)
+  const [activeNoPromptPrpId, setActiveNoPromptPrpId] = useState<string | null>(null)
+  const [typedReason, setTypedReason] = useState('')
+
+  // Slot details (matches Photo 2)
+  const slotDetails = {
+    dayLabel: 'DAY 1',
+    status: 'confirmed',
+    title: 'Garden Niwas Resort',
+    cost: 'INR 17500.00',
+    duration: '0m',
+    source: 'vote',
+  }
+
+  const [proposals, setProposals] = useState<ProposalItem[]>([
     {
-      id: 'opt_1',
-      tag: 'INITIAL PLAN',
-      title: 'Anjuna Beach',
-      whyCreated: 'The original plan still has support from members who prefer a lively beach experience.',
-      yesVotes: 2,
-      noVotes: 1,
-    },
-    {
-      id: 'opt_2',
-      tag: 'AI SUGGESTION',
-      title: 'Candolim Beach',
-      whyCreated: "Created to address concerns about crowds while preserving the group's preference for a relaxed beach activity.",
-      yesVotes: 0,
-      noVotes: 0,
-    },
-    {
-      id: 'opt_3',
-      tag: 'MEMBER PROPOSAL',
-      title: 'Fort Aguada + Beach',
-      whyCreated: 'Accommodates members who wanted sightseeing while keeping part of the original beach experience.',
-      yesVotes: 1,
-      noVotes: 0,
+      prpId: 'prp_1',
+      actionType: 'Add',
+      title: 'Alleppey Bazaar',
+      status: 'accepted',
+      rationale: 'Opens at six, so it works before the train.',
+      proposedBy: 'usr_e459a18c',
+      costDelta: 'INR 350.00',
+      currency: 'INR',
+      votes: [
+        { usrId: 'usr_4e65d08a', vote: 'abstain' },
+        { usrId: 'usr_e459a18c', vote: 'yes', comment: 'Only if we skip the museum.' },
+      ],
+      userVote: undefined,
     },
   ])
 
-  const handleVote = (id: string, vote: 'yes' | 'no') => {
-    setOptions((prev) =>
-      prev.map((opt) => {
-        if (opt.id !== id) return opt
-        const prevVote = opt.userVote
-        let newYes = opt.yesVotes
-        let newNo = opt.noVotes
+  // Count votes
+  const getVoteCounts = (proposal: ProposalItem) => {
+    let yes = 0
+    let no = 0
+    let abstain = 0
 
-        if (prevVote === 'yes') newYes--
-        if (prevVote === 'no') newNo--
+    proposal.votes.forEach((v) => {
+      if (v.vote === 'yes') yes++
+      if (v.vote === 'no') no++
+      if (v.vote === 'abstain') abstain++
+    })
 
-        if (vote === 'yes') newYes++
-        if (vote === 'no') newNo++
+    return { yes, no, abstain }
+  }
 
-        return { ...opt, userVote: vote, yesVotes: newYes, noVotes: newNo }
+  // Cast YES vote
+  const handleVoteYes = (prpId: string) => {
+    setProposals((prev) =>
+      prev.map((p) => {
+        if (p.prpId !== prpId) return p
+        const filtered = p.votes.filter((v) => v.usrId !== 'usr_nikitha')
+        return {
+          ...p,
+          userVote: 'yes',
+          votes: [...filtered, { usrId: 'usr_nikitha', vote: 'yes' }],
+        }
       })
     )
-    addToast(`Vote cast (${vote.toUpperCase()})`, 'success')
+    addToast('Vote registered: Yes 👍', 'success')
+  }
+
+  // Cast ABSTAIN vote
+  const handleVoteAbstain = (prpId: string) => {
+    setProposals((prev) =>
+      prev.map((p) => {
+        if (p.prpId !== prpId) return p
+        const filtered = p.votes.filter((v) => v.usrId !== 'usr_nikitha')
+        return {
+          ...p,
+          userVote: 'abstain',
+          votes: [...filtered, { usrId: 'usr_nikitha', vote: 'abstain' }],
+        }
+      })
+    )
+    addToast('Vote registered: Abstain ⊘', 'info')
+  }
+
+  // Cast NO vote with reason
+  const submitNoVote = (prpId: string) => {
+    if (!typedReason.trim()) {
+      addToast('WanderMatch requires a typed reason for NO votes so the AI can build a compromise.', 'conflict')
+      return
+    }
+
+    const objectionText = typedReason.trim()
+
+    setProposals((prev) =>
+      prev.map((p) => {
+        if (p.prpId !== prpId) return p
+        const filtered = p.votes.filter((v) => v.usrId !== 'usr_nikitha')
+        return {
+          ...p,
+          userVote: 'no',
+          votes: [
+            ...filtered,
+            { usrId: 'usr_nikitha', vote: 'no', comment: objectionText },
+          ],
+        }
+      })
+    )
+
+    setActiveNoPromptPrpId(null)
+    setTypedReason('')
+    addToast(`NO vote recorded with reason: "${objectionText}"`, 'info')
   }
 
   return (
-    <PageWrapper trpId={trpId} tripTitle="Goa Getaway">
-      <div className="flex flex-col gap-6 max-w-5xl mx-auto">
-        {/* Header Title (PDF Page 13 Design) */}
-        <div className="text-center flex flex-col gap-1">
-          <h1 className="font-serif text-3xl font-bold text-ink">Goa Getaway</h1>
-          <p className="font-mono text-xs text-slate">Day 1: Arrival • 12:00 PM • 6 members</p>
-        </div>
-
-        {/* Day Navigation Bar */}
-        <div className="flex items-center justify-between border-b border-slate-light pb-2">
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-xs font-bold text-route border-b-2 border-route pb-1">
-              Day 1
-            </span>
-            <span className="font-mono text-xs text-slate hover:text-ink cursor-pointer">
-              Day 2
-            </span>
-            <span className="font-mono text-xs text-slate hover:text-ink cursor-pointer">
-              Day 3
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate(`/trips/${trpId}`)}
-            className="font-mono text-xs text-route font-bold hover:underline"
+    <PageWrapper trpId={trpId} tripTitle="Trip Workspace">
+      <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-16">
+        {/* Navigation & Action Bar (Matching Photo 2) */}
+        <div className="flex items-center justify-between pt-1">
+          <Link
+            to={`/trips/${trpId}`}
+            className="text-xs font-semibold text-gray-700 hover:text-blue-600 transition-colors flex items-center gap-1.5"
           >
-            &larr; Back to Plan
-          </button>
-        </div>
-
-        {/* Live Voting Status Bar (PDF Page 13 Design) */}
-        <div className="bg-paper border border-slate-light rounded-[10px] p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2 font-mono text-xs text-slate">
-            <span>👥</span>
-            <span>Collecting preferences — 4 of 6 members responded</span>
-          </div>
-          <div className="bg-amber-100 border border-amber-300 text-amber-900 font-mono text-xs font-bold px-3 py-1 rounded-full">
-            ⏱ Round 1 ends in 06:42
-          </div>
-        </div>
-
-        {/* Round 1 — Resolution Options Header */}
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <h2 className="font-serif text-xl font-bold text-ink">Round 1 — Resolution Options</h2>
-            <p className="font-mono text-xs text-slate">Vote to lock in a plan</p>
-          </div>
+            <span>&larr;</span>
+            <span>Back to Trip Itinerary</span>
+          </Link>
 
           <Button
-            onClick={() => addToast('Opening proposal form...', 'info')}
-            className="text-xs py-1.5 px-3 min-h-[36px]"
+            onClick={() => setIsProposeOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-md flex items-center gap-1.5 shadow-xs"
           >
-            + Propose Activity
+            <span className="w-4 h-4 rounded-full border border-white/60 flex items-center justify-center text-[11px] font-bold">
+              +
+            </span>
+            <span>Propose Alternative</span>
           </Button>
         </div>
 
-        {/* Side-by-Side Resolution Options Cards (PDF Page 13 Design) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {options.map((opt) => (
-            <div
-              key={opt.id}
-              className="bg-card border border-slate-light rounded-[12px] overflow-hidden shadow-xs flex flex-col justify-between hover:border-route transition-all"
-            >
-              <div>
-                {/* Image Header */}
-                <div className="relative aspect-video bg-paper overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80"
-                    alt={opt.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-2 left-2 bg-ink/80 text-card font-mono text-[9px] font-bold px-2 py-0.5 rounded">
-                    {opt.tag}
-                  </span>
-                </div>
+        {/* Selected Slot Box (Matching Photo 2) */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-2xs flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider font-mono">
+              SELECTED SLOT ({slotDetails.dayLabel})
+            </span>
+            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+              {slotDetails.status}
+            </span>
+          </div>
 
-                <div className="p-4 flex flex-col gap-2">
-                  <h3 className="font-serif text-lg font-bold text-ink">
-                    {opt.title}
-                  </h3>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight mt-0.5">
+            {slotDetails.title}
+          </h1>
 
-                  <span className="font-mono text-[10px] text-slate font-bold uppercase">
-                    WHY THIS PLAN:
-                  </span>
-                  <p className="font-sans text-xs text-slate leading-relaxed">
-                    {opt.whyCreated}
-                  </p>
+          <p className="text-xs text-gray-500 font-sans mt-0.5">
+            Cost: {slotDetails.cost} · Duration: {slotDetails.duration} · Source: {slotDetails.source}
+          </p>
+        </div>
 
-                  <div className="font-mono text-xs text-slate pt-2 border-t border-slate-light/60">
-                    Current Votes: <strong className="text-emerald-700">{opt.yesVotes} Yes</strong> • <strong className="text-clay">{opt.noVotes} No</strong>
+        {/* Open Proposals & Member Votes Section Header (Matching Photo 2) */}
+        <div className="pt-2">
+          <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+            Open Proposals &amp; Member Votes ({proposals.length})
+          </h2>
+        </div>
+
+        {/* Proposals List (Matching Photo 2) */}
+        <div className="flex flex-col gap-4">
+          {proposals.map((proposal) => {
+            const counts = getVoteCounts(proposal)
+
+            return (
+              <div
+                key={proposal.prpId}
+                className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs flex flex-col gap-3"
+              >
+                {/* Proposal Top Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-gray-900 tracking-tight">
+                      {proposal.actionType}: {proposal.title}
+                    </h3>
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded border capitalize bg-emerald-50 text-emerald-700 border-emerald-200">
+                      {proposal.status}
+                    </span>
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+                      {proposal.actionType}
+                    </span>
+                  </div>
+
+                  {/* Vote Counts Pills (Matching Photo 2: 1 Yes, 0 No, 1 Abstain) */}
+                  <div className="flex items-center gap-2 shrink-0 text-xs font-medium">
+                    <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-2.5 py-1 flex items-center gap-1">
+                      <span>👍</span>
+                      <span>{counts.yes} Yes</span>
+                    </span>
+                    <span className="bg-rose-50 text-rose-800 border border-rose-200 rounded px-2.5 py-1 flex items-center gap-1">
+                      <span>👎</span>
+                      <span>{counts.no} No</span>
+                    </span>
+                    <span className="bg-gray-100 text-gray-700 border border-gray-200 rounded px-2.5 py-1 flex items-center gap-1">
+                      <span>⊘</span>
+                      <span>{counts.abstain} Abstain</span>
+                    </span>
                   </div>
                 </div>
+
+                {/* Proposal Rationale / Description Quote (Matching Photo 2) */}
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-sm text-gray-800 italic">
+                    "{proposal.rationale}"
+                  </p>
+                  <p className="text-xs text-gray-500 font-sans">
+                    Proposed by <span className="font-mono text-gray-700 font-medium">{proposal.proposedBy}</span> · Cost delta: {proposal.costDelta}
+                  </p>
+                </div>
+
+                {/* Member Votes & Visibility Sub-card (Matching Photo 2) */}
+                <div className="bg-gray-50/70 border border-gray-100 rounded-lg p-3.5 flex flex-col gap-2 mt-1">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                    <span>👥</span>
+                    <span>Member Votes &amp; Visibility:</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {proposal.votes.map((v, vIdx) => {
+                      const isYes = v.vote === 'yes'
+                      const isNo = v.vote === 'no'
+
+                      return (
+                        <div
+                          key={vIdx}
+                          className={`text-xs font-mono px-2.5 py-1 rounded-md border flex items-center gap-1 shadow-2xs ${
+                            isYes
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200 font-medium'
+                              : isNo
+                              ? 'bg-rose-50 text-rose-900 border-rose-200 font-medium'
+                              : 'bg-white text-gray-700 border-gray-200'
+                          }`}
+                        >
+                          <span className="font-bold">{v.usrId}:</span>
+                          <span className="capitalize">{v.vote}</span>
+                          {v.comment && (
+                            <span className="italic text-gray-600">
+                              ("{v.comment}")
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Inline Objection Prompt if NO was clicked */}
+                {activeNoPromptPrpId === proposal.prpId && (
+                  <div className="bg-rose-50/70 border border-rose-200 rounded-lg p-3.5 flex flex-col gap-2.5 mt-2 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-rose-900 flex items-center gap-1">
+                        <span>👎</span>
+                        <span>State your objection reason (Required for AI Consensus):</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setActiveNoPromptPrpId(null)}
+                        className="text-xs text-gray-400 hover:text-gray-700"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {QUICK_OBJECTIONS.map((chip, cIdx) => (
+                        <button
+                          key={cIdx}
+                          type="button"
+                          onClick={() => setTypedReason(chip)}
+                          className="text-[11px] font-sans px-2.5 py-1 rounded bg-white border border-gray-200 text-gray-700 hover:border-rose-400 hover:bg-rose-50/50 transition-all text-left"
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+
+                    <textarea
+                      rows={2}
+                      value={typedReason}
+                      onChange={(e) => setTypedReason(e.target.value)}
+                      placeholder="e.g. Only if we skip the museum; too crowded; over budget..."
+                      className="w-full bg-white border border-gray-300 rounded p-2 text-xs text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                    />
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveNoPromptPrpId(null)}
+                        className="text-xs text-gray-600 hover:text-gray-900 px-3 py-1"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => submitNoVote(proposal.prpId)}
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs px-3.5 py-1.5 rounded shadow-xs"
+                      >
+                        Submit Objection &rarr;
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Vote Action Buttons */}
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => handleVoteYes(proposal.prpId)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md border flex items-center gap-1 transition-colors ${
+                      proposal.userVote === 'yes'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white text-emerald-700 border-gray-200 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <span>👍</span>
+                    <span>Vote Yes</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveNoPromptPrpId(proposal.prpId)
+                      setTypedReason('')
+                    }}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md border flex items-center gap-1 transition-colors ${
+                      proposal.userVote === 'no'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                        : 'bg-white text-rose-700 border-gray-200 hover:bg-rose-50'
+                    }`}
+                  >
+                    <span>👎</span>
+                    <span>Vote No</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVoteAbstain(proposal.prpId)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md border flex items-center gap-1 transition-colors ${
+                      proposal.userVote === 'abstain'
+                        ? 'bg-gray-700 text-white border-gray-700 shadow-xs'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>⊘</span>
+                    <span>Abstain</span>
+                  </button>
+                </div>
               </div>
-
-              {/* Vote Buttons */}
-              <div className="p-4 pt-0 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleVote(opt.id, 'no')}
-                  className={`flex-1 py-1.5 rounded-[8px] font-mono text-xs font-bold transition-all border ${
-                    opt.userVote === 'no'
-                      ? 'bg-clay text-card border-clay shadow-xs'
-                      : 'bg-paper text-clay border-clay/30 hover:bg-clay/10'
-                  }`}
-                >
-                  ✕ No
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleVote(opt.id, 'yes')}
-                  className={`flex-1 py-1.5 rounded-[8px] font-mono text-xs font-bold transition-all border ${
-                    opt.userVote === 'yes'
-                      ? 'bg-emerald-700 text-card border-emerald-700 shadow-xs'
-                      : 'bg-paper text-emerald-700 border-emerald-700/30 hover:bg-emerald-50'
-                  }`}
-                >
-                  ✓ Yes
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
-        {/* AI Concierge Panel (PDF Page 13 Design) */}
-        <div className="bg-paper border border-slate-light rounded-[12px] p-6 shadow-xs flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-route text-card font-mono text-xs font-bold flex items-center justify-center">
-              🤖
-            </span>
-            <h3 className="font-serif text-base font-bold text-ink">
-              AI Concierge — Round 1 Analysis
-            </h3>
-          </div>
+        {/* Modal for Propose Alternative */}
+        <ProposeActivityModal
+          isOpen={isProposeOpen}
+          onClose={() => setIsProposeOpen(false)}
+          trpId={trpId}
+          itmId={itmId}
+          slotTime="Garden Niwas Resort (Day 1)"
+          onSuccess={() => {
+            addToast('Alternative proposal added to Open Proposals!', 'success')
+          }}
+        />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans text-xs text-slate">
-            <div className="flex flex-col gap-1 p-3 bg-card rounded-[8px] border border-slate-light">
-              <span className="font-mono text-[10px] font-bold text-ink uppercase">
-                WHAT HAPPENED
-              </span>
-              <p>
-                Candolim received mixed votes, while Fort Aguada gained support from 50% of active voters.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1 p-3 bg-card rounded-[8px] border border-slate-light">
-              <span className="font-mono text-[10px] font-bold text-ink uppercase">
-                WHAT CONCERNS REMAIN
-              </span>
-              <p>
-                The group is split 50/50 between sightseeing and wanting a purely beach-focused afternoon.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1 p-3 bg-card rounded-[8px] border border-slate-light">
-              <span className="font-mono text-[10px] font-bold text-ink uppercase">
-                WHAT I RECOMMEND NEXT
-              </span>
-              <p>
-                I will propose a split itinerary for the afternoon, reuniting for dinner at a central location.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Queued Round 2 Indicator (PDF Page 13 Design) */}
-        <div className="p-4 bg-card border border-slate-light rounded-[12px] text-center font-mono text-xs text-slate opacity-75">
-          ⌛ Round 2 — Updated Options (Generating based on feedback...)
-        </div>
+        {/* Bottom Footer (Matching Photo 2) */}
+        <footer className="text-center text-xs text-gray-400 mt-10 pt-4 border-t border-gray-200">
+          WanderMatch · KogniVera Hackathon 2026 · PS-11 Real Architecture
+        </footer>
       </div>
     </PageWrapper>
   )

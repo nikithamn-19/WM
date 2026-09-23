@@ -11,6 +11,7 @@ export interface ProposeActivityModalProps {
   onClose: () => void
   trpId: string
   itmId?: string
+  slotTime?: string
   onSuccess?: () => void
 }
 

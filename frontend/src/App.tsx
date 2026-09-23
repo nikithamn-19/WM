@@ -60,6 +60,7 @@ export default function App() {
             <Route path="/trips/:trpId/preview" element={<TripPreviewScreen />} />
             <Route path="/trips/:trpId" element={<TripHomeScreen />} />
             <Route path="/trips/:trpId/branches/:itmId" element={<BranchViewScreen />} />
+            <Route path="/trips/:trpId/slots/:itmId" element={<BranchViewScreen />} />
             <Route path="/trips/:trpId/resolved" element={<ResolvedItineraryScreen />} />
             <Route path="/trips/:trpId/chat" element={<TripChatScreen />} />
             <Route path="/trips/:trpId/memories" element={<MemoriesScreen />} />

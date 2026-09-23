@@ -20,6 +20,7 @@ build/
 # Antigravity & AI scratch files
 .gemini/
 scratch/
+graphify-out/
 
 # Python & Databases
 __pycache__/
