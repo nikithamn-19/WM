@@ -28,8 +28,8 @@ export const ProposeActivityModal: React.FC<ProposeActivityModalProps> = ({
   const [rationale, setRationale] = useState('') // REQUIRED LABEL: Rationale
   const [entityType, setEntityType] = useState('poi')
   const [entityId, setEntityId] = useState('')
-  const [costDelta, setCostDelta] = useState('0.00') // MUST BE STRING
-  const [currency, setCurrency] = useState('USD')
+  const [costDelta, setCostDelta] = useState('1200.00') // MUST BE STRING
+  const [currency, setCurrency] = useState('INR')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {

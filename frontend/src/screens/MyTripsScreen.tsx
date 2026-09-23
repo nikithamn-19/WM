@@ -16,20 +16,20 @@ export const MyTripsScreen: React.FC = () => {
 
   const dummyFallbackTrips: Trip[] = [
     {
-      trpId: 'trp_bali_2026',
+      trpId: 'trp_goa_2026',
       ownerId: 'usr_owner',
-      title: 'Bali Tropical Escape & Cultural Journey',
-      destinationCityId: 'Bali',
+      title: 'Goa Sunsets, Beaches & Heritage Getaway',
+      destinationCityId: 'Goa',
       startDate: '2026-10-10',
       endDate: '2026-10-16',
       partySize: 4,
       mode: 'Mode A',
       status: 'active',
-      homeCurrency: 'USD',
+      homeCurrency: 'INR',
       members: [
         {
           tmbId: 'tmb_1',
-          trpId: 'trp_bali_2026',
+          trpId: 'trp_goa_2026',
           usrId: 'usr_owner',
           displayName: 'Alex Chen',
           role: 'owner',
@@ -47,7 +47,7 @@ export const MyTripsScreen: React.FC = () => {
       partySize: 5,
       mode: 'Mode NA',
       status: 'active',
-      homeCurrency: 'USD',
+      homeCurrency: 'INR',
       members: [
         {
           tmbId: 'tmb_2',

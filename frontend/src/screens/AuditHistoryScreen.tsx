@@ -4,7 +4,7 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 
 export const AuditHistoryScreen: React.FC = () => {
-  const { trpId = 'trp_bali_2026' } = useParams()
+  const { trpId = 'trp_goa_2026' } = useParams()
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<'audit' | 'members'>('audit')
@@ -13,14 +13,14 @@ export const AuditHistoryScreen: React.FC = () => {
     {
       revId: 'rev_3',
       version: 'v3',
-      action: 'AI Blended Plan accepted for Afternoon Slot',
+      action: 'AI Blended Plan accepted for Afternoon Slot (Dudhsagar Waterfalls)',
       actor: 'Alex Chen (Owner)',
       timestamp: '2026-10-12 14:30',
     },
     {
       revId: 'rev_2',
       version: 'v2',
-      action: 'Vote cast (NO) with objection: "Hot springs instead of steep trek"',
+      action: 'Vote cast (NO) with suggestion: "Dudhsagar Jeep safari instead of long trek"',
       actor: 'Priya Sharma (Editor)',
       timestamp: '2026-10-12 13:15',
     },

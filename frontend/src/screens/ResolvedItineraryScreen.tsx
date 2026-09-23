@@ -9,7 +9,7 @@ import { useAuthContext } from '../context/AuthContext'
 import type { Trip, ItineraryItem } from '../types/trip'
 
 export const ResolvedItineraryScreen: React.FC = () => {
-  const { trpId = 'trp_bali_2026' } = useParams()
+  const { trpId = 'trp_goa_2026' } = useParams()
   const navigate = useNavigate()
   const { getToken } = useAuthContext()
 
@@ -23,15 +23,15 @@ export const ResolvedItineraryScreen: React.FC = () => {
       itnId: 'itn_1',
       dayIndex: 1,
       sortOrder: 1,
-      title: 'Sacred Monkey Forest Sanctuary',
-      cost: '25.00',
-      currency: 'USD',
+      title: 'Baga Beach & Water Sports',
+      cost: '1200.00',
+      currency: 'INR',
       slotStatus: 'CONFIRMED',
       locked: true,
       status: 'confirmed',
       itemType: 'poi',
       entityType: 'poi',
-      entityId: 'poi_monkey_forest',
+      entityId: 'poi_baga_beach',
       startsAt: '2026-10-10T09:00:00Z',
       endsAt: '2026-10-10T12:00:00Z',
       timeSlot: '09:00 - 12:00 (Morning)',
@@ -41,15 +41,15 @@ export const ResolvedItineraryScreen: React.FC = () => {
       itnId: 'itn_1',
       dayIndex: 1,
       sortOrder: 2,
-      title: 'Batur Thermal Springs & Spa',
-      cost: '50.00',
-      currency: 'USD',
+      title: 'Dudhsagar Waterfalls & Jungle Safari',
+      cost: '2500.00',
+      currency: 'INR',
       slotStatus: 'CONFIRMED',
       locked: true,
       status: 'confirmed',
       itemType: 'poi',
       entityType: 'poi',
-      entityId: 'poi_batur_spa',
+      entityId: 'poi_dudhsagar',
       startsAt: '2026-10-10T14:00:00Z',
       endsAt: '2026-10-10T17:00:00Z',
       timeSlot: '14:00 - 17:00 (Afternoon)',

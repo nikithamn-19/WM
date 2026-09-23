@@ -26,36 +26,36 @@ export const PhotosScreen: React.FC = () => {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [folders, setFolders] = useState<string[]>([
     'All Photos',
-    'Arrival & Villa',
-    'Culture & Temples',
-    'Food & Beach',
+    'Arrival & Calangute Resort',
+    'Baga Beach & Water Sports',
+    'Dudhsagar Trek & Spice Trail',
   ])
   const [selectedFolder, setSelectedFolder] = useState<string>('All Photos')
 
   const [photos, setPhotos] = useState<PhotoItem[]>([
     {
       id: 'p1',
-      folder: 'Arrival & Villa',
-      title: 'Villa Check-in & Pool View',
-      caption: 'Settled into our private villa in Seminyak!',
+      folder: 'Arrival & Calangute Resort',
+      title: 'Resort Check-in & Pool View',
+      caption: 'Settled into our beach resort in Calangute Goa!',
       url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
       uploadedBy: 'Alex Chen',
       timestamp: 'Oct 10, 2026',
     },
     {
       id: 'p2',
-      folder: 'Culture & Temples',
-      title: 'Uluwatu Temple Sunset',
-      caption: 'Breathtaking cliffside views and Kecak dance performance.',
-      url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80',
+      folder: 'Dudhsagar Trek & Spice Trail',
+      title: 'Dudhsagar Waterfalls View',
+      caption: 'Breathtaking lush green waterfalls & jungle jeep trek.',
+      url: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80',
       uploadedBy: 'Priya Sharma',
       timestamp: 'Oct 11, 2026',
     },
     {
       id: 'p3',
-      folder: 'Food & Beach',
-      title: 'Jimbaran Bay Candlelight Seafood',
-      caption: 'Delicious fresh grilled seafood right on the beach.',
+      folder: 'Baga Beach & Water Sports',
+      title: 'Anjuna Beach Shack Sunset & Seafood',
+      caption: 'Delicious fresh grilled kingfish & sunset vibes at Britto’s.',
       url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
       uploadedBy: 'Dev Patel',
       timestamp: 'Oct 12, 2026',
@@ -128,7 +128,7 @@ export const PhotosScreen: React.FC = () => {
   return (
     <PageWrapper
       trpId={trpId}
-      tripTitle={trip?.title || 'Bali Tropical Escape'}
+      tripTitle={trip?.title || 'Goa Sunsets, Beaches & Heritage Getaway'}
       mode={trip?.mode || 'Mode A'}
     >
       <div className="flex flex-col gap-6">

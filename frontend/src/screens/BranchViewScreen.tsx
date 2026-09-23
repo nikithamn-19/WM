@@ -8,7 +8,7 @@ import { useTripContext } from '../context/TripContext'
 import type { Branch } from '../types/branch'
 
 export const BranchViewScreen: React.FC = () => {
-  const { trpId = 'trp_bali_2026', itmId = 'itm_b4' } = useParams()
+  const { trpId = 'trp_goa_2026', itmId = 'itm_b4' } = useParams()
   const navigate = useNavigate()
   const { getToken, currentUser } = useAuthContext()
   const { addToast } = useTripContext()
@@ -26,12 +26,12 @@ export const BranchViewScreen: React.FC = () => {
       brcId: 'brc_1',
       itmId,
       parentBranchId: null,
-      title: 'Batur Hot Springs & Spa Relaxation',
-      rationale: 'Relaxed thermal springs experience to accommodate members wanting a low-intensity afternoon.',
+      title: 'Mandovi River Sunset Cruise & Dinner',
+      rationale: 'Relaxed river cruise with Goan folk dance and seafood dinner.',
       entityType: 'poi',
-      entityId: 'poi_batur_spa',
-      costDelta: '45.00',
-      currency: 'USD',
+      entityId: 'poi_mandovi_cruise',
+      costDelta: '2200.00',
+      currency: 'INR',
       status: 'OPEN',
       members: [
         { bmcId: 'bmb_1', brcId: 'brc_1', usrId: 'usr_owner', displayName: 'Alex Chen' },
@@ -42,12 +42,12 @@ export const BranchViewScreen: React.FC = () => {
       brcId: 'brc_2',
       itmId,
       parentBranchId: null,
-      title: 'Volcano Sunrise Trek & Crater Walk',
-      rationale: 'Active mountain trek for adventurous members looking for hiking and high elevation views.',
+      title: 'Anjuna Beach Shack & Live Music Night',
+      rationale: 'Vibrant beachside dinner with live acoustic music and bonfire.',
       entityType: 'poi',
-      entityId: 'poi_batur_hike',
-      costDelta: '65.00',
-      currency: 'USD',
+      entityId: 'poi_anjuna_shack',
+      costDelta: '1800.00',
+      currency: 'INR',
       status: 'FINALIZED',
       members: [
         { bmcId: 'bmb_3', brcId: 'brc_2', usrId: 'usr_jordan', displayName: 'Jordan Lee' },

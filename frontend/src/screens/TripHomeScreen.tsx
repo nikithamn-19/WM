@@ -13,7 +13,7 @@ import { getTrip, apiFetch } from '../lib/api'
 import { useAuthContext } from '../context/AuthContext'
 
 export const TripHomeScreen: React.FC = () => {
-  const { trpId = 'trp_bali_2026' } = useParams()
+  const { trpId = 'trp_goa_2026' } = useParams()
   const navigate = useNavigate()
   const { addToast, trip, setTrip } = useTripContext()
   const { getToken } = useAuthContext()
@@ -35,12 +35,12 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_b1',
       dayIndex: 1,
       sortOrder: 1,
-      title: 'Sacred Monkey Forest',
+      title: 'Baga Beach & Water Sports',
       slotStatus: 'CONFIRMED',
-      cost: '25.00',
-      currency: 'USD',
+      cost: '1200.00',
+      currency: 'INR',
       entityType: 'poi',
-      entityId: 'poi_monkey_forest',
+      entityId: 'poi_baga_beach',
       itnId: 'itn_1',
       startsAt: null,
       endsAt: null,
@@ -53,12 +53,12 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_b2',
       dayIndex: 1,
       sortOrder: 2,
-      title: 'Mount Batur Trek',
+      title: 'Dudhsagar Waterfalls Trek',
       slotStatus: 'IN_CONSENSUS',
-      cost: '65.00',
-      currency: 'USD',
+      cost: '2500.00',
+      currency: 'INR',
       entityType: 'poi',
-      entityId: 'poi_batur',
+      entityId: 'poi_dudhsagar',
       itnId: 'itn_1',
       startsAt: null,
       endsAt: null,
@@ -74,7 +74,7 @@ export const TripHomeScreen: React.FC = () => {
       title: 'Evening Activity',
       slotStatus: 'EMPTY',
       cost: '0.00',
-      currency: 'USD',
+      currency: 'INR',
       entityType: null,
       entityId: null,
       itnId: 'itn_1',
@@ -89,10 +89,10 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_b4',
       dayIndex: 1,
       sortOrder: 4,
-      title: 'Dinner Options',
+      title: 'Dinner at Anjuna Beach Shack',
       slotStatus: 'BRANCHED',
-      cost: '30.00',
-      currency: 'USD',
+      cost: '1800.00',
+      currency: 'INR',
       entityType: 'meal',
       entityId: 'meal_dinner',
       itnId: 'itn_1',
@@ -108,10 +108,10 @@ export const TripHomeScreen: React.FC = () => {
   const [items, setItems] = useState<ItineraryItem[]>(dummyFallbackItems)
 
   const dummyMembers = [
-    { tmbId: 'tmb_1', trpId: 'trp_bali_2026', usrId: 'usr_1', displayName: 'Alex Chen', role: 'owner' as const, joinedAt: '2026-01-01' },
-    { tmbId: 'tmb_2', trpId: 'trp_bali_2026', usrId: 'usr_2', displayName: 'Priya Sharma', role: 'editor' as const, joinedAt: '2026-01-01' },
-    { tmbId: 'tmb_3', trpId: 'trp_bali_2026', usrId: 'usr_3', displayName: 'Jordan Lee', role: 'editor' as const, joinedAt: '2026-01-01' },
-    { tmbId: 'tmb_4', trpId: 'trp_bali_2026', usrId: 'usr_4', displayName: 'Sam Rivera', role: 'editor' as const, joinedAt: '2026-01-01' },
+    { tmbId: 'tmb_1', trpId: 'trp_goa_2026', usrId: 'usr_1', displayName: 'Alex Chen', role: 'owner' as const, joinedAt: '2026-01-01' },
+    { tmbId: 'tmb_2', trpId: 'trp_goa_2026', usrId: 'usr_2', displayName: 'Priya Sharma', role: 'editor' as const, joinedAt: '2026-01-01' },
+    { tmbId: 'tmb_3', trpId: 'trp_goa_2026', usrId: 'usr_3', displayName: 'Jordan Lee', role: 'editor' as const, joinedAt: '2026-01-01' },
+    { tmbId: 'tmb_4', trpId: 'trp_goa_2026', usrId: 'usr_4', displayName: 'Sam Rivera', role: 'editor' as const, joinedAt: '2026-01-01' },
   ]
 
   useEffect(() => {

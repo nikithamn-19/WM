@@ -27,10 +27,10 @@ export interface ConflictResolutionPanelProps {
 export const dummyBlendedPlan = {
   action: 'BLENDED',
   blendedPlan: {
-    title: 'Batur Volcano Thermal Springs & Summit View',
-    rationale: 'Combines the summit trek experience with thermal spa relaxation to accommodate both preferences within the same time slot.',
-    costDelta: '50.00',
-    currency: 'USD',
+    title: 'Dudhsagar Waterfalls & Jungle Jeep Safari Combo',
+    rationale: 'Combines the jungle jeep adventure with spice plantation tour to accommodate both adventurous and relaxed member preferences.',
+    costDelta: '2500.00',
+    currency: 'INR',
     constraintStatus: 'satisfied' as const,
   },
   currentRound: 2,

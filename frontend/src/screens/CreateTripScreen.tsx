@@ -28,7 +28,7 @@ export const CreateTripScreen: React.FC = () => {
     setDateError('')
 
     addToast('Trip created successfully!', 'success')
-    navigate('/trips/trp_bali_2026')
+    navigate('/trips/trp_goa_2026')
   }
 
   return (
@@ -37,7 +37,6 @@ export const CreateTripScreen: React.FC = () => {
         <form onSubmit={handleSubmit} className="bg-card border border-slate-light rounded-[10px] p-6 shadow-sm flex flex-col gap-4">
           <div>
             <h2 className="font-serif text-2xl font-bold text-ink">Create a Group Trip</h2>
-            <p className="text-xs font-mono text-slate mt-1">Setup trip itinerary parameters &amp; governance mode</p>
           </div>
 
           <Input
@@ -45,7 +44,7 @@ export const CreateTripScreen: React.FC = () => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            placeholder="e.g. Bali Tropical Escape"
+            placeholder="e.g. Goa Sunsets & Beach Getaway"
           />
 
           <Input

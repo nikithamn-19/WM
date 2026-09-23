@@ -29,21 +29,21 @@ export const TripChatScreen: React.FC = () => {
       id: 'msg_1',
       senderId: 'usr_priya',
       senderName: 'Priya Sharma',
-      text: 'Hey everyone! Excited for Bali 🌴 Should we lock in the Uluwatu Sunset Tour for Day 2?',
+      text: 'Hey everyone! Excited for Goa 🏖️ Should we book the Dudhsagar Waterfalls trek for Day 2?',
       timestamp: '10:14 AM',
     },
     {
       id: 'msg_2',
       senderId: 'usr_owner',
       senderName: 'Alex Chen',
-      text: 'Sounds great! I created a proposal for Uluwatu Temple in the itinerary timeline.',
+      text: 'Sounds awesome! I added Dudhsagar trek to our afternoon slot in the itinerary.',
       timestamp: '10:18 AM',
     },
     {
       id: 'msg_3',
       senderId: 'usr_dev',
       senderName: 'Dev Patel',
-      text: 'Count me in for seafood dinner afterwards in Jimbaran Bay 🦀',
+      text: 'Count me in for seafood & sunset dinner at Britto’s in Baga Beach 🦀',
       timestamp: '10:25 AM',
     },
   ])
@@ -105,7 +105,7 @@ export const TripChatScreen: React.FC = () => {
   return (
     <PageWrapper
       trpId={trpId}
-      tripTitle={trip?.title || 'Bali Tropical Escape'}
+      tripTitle={trip?.title || 'Goa Sunsets, Beaches & Heritage Getaway'}
       mode={trip?.mode || 'Mode A'}
     >
       <div className="flex flex-col h-[calc(100vh-140px)] bg-card border border-slate-light rounded-[12px] shadow-sm overflow-hidden">
@@ -114,7 +114,7 @@ export const TripChatScreen: React.FC = () => {
           <div>
             <h1 className="font-serif text-xl font-bold text-ink">Trip Group Chat</h1>
             <p className="text-xs font-mono text-slate">
-              {trip?.title || 'Bali Trip'} • {messages.length} Messages
+              {trip?.title || 'Goa Trip'} • {messages.length} Messages
             </p>
           </div>
           <div className="flex items-center gap-2">

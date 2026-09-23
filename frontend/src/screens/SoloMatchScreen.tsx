@@ -15,31 +15,31 @@ export const SoloMatchScreen: React.FC = () => {
   const { addToast } = useTripContext()
 
   const [activeTab, setActiveTab] = useState<'groups' | 'guides'>('groups')
-  const [cityInput, setCityInput] = useState('Bali')
-  const [budgetInput, setBudgetInput] = useState('100.00')
-  const [currency, setCurrency] = useState('USD')
+  const [cityInput, setCityInput] = useState('Goa')
+  const [budgetInput, setBudgetInput] = useState('3500.00')
+  const [currency, setCurrency] = useState('INR')
   const [isSearchingGroups, setIsSearchingGroups] = useState(false)
   const [isSearchingGuides, setIsSearchingGuides] = useState(false)
 
   const dummyGroupMatches: GroupMatch[] = [
     {
       trip: {
-        trpId: 'trp_bali_2026',
+        trpId: 'trp_goa_2026',
         ownerId: 'usr_owner',
-        title: 'Bali Tropical Escape & Cultural Journey',
-        destinationCityId: 'Bali',
+        title: 'Goa Sunsets, Beaches & Heritage Getaway',
+        destinationCityId: 'Goa',
         startDate: '2026-10-10',
         endDate: '2026-10-16',
         partySize: 4,
         mode: 'Mode NA',
         status: 'planning',
-        homeCurrency: 'USD',
+        homeCurrency: 'INR',
         members: [],
       },
-      compatibilityScore: 85, // INTEGER 0-100
+      compatibilityScore: 88, // INTEGER 0-100
       ageGroupMatch: true,
-      sharedLanguages: ['en', 'hi'],
-      sharedInterests: ['heritage', 'food'],
+      sharedLanguages: ['en', 'hi', 'kkn'],
+      sharedInterests: ['beach', 'food', 'heritage'],
       dateOverlapDays: 5,
     },
   ]
@@ -47,20 +47,20 @@ export const SoloMatchScreen: React.FC = () => {
   const dummyGuideMatches: GuideMatch[] = [
     {
       guide: {
-        gidId: 'gid_bali_01',
-        cityId: 'Bali',
-        displayName: 'Wayan Sudarma',
-        languages: ['en', 'hi'],
-        specialisation: 'heritage',
-        dayRate: '80.00',
-        halfDayRate: '45.00',
-        currency: 'USD',
-        rating: 4.8,
-        reviewCount: 42,
+        gidId: 'gid_goa_01',
+        cityId: 'Goa',
+        displayName: 'Rohan Fernandes',
+        languages: ['en', 'hi', 'kkn'],
+        specialisation: 'heritage & beach tours',
+        dayRate: '3500.00',
+        halfDayRate: '2000.00',
+        currency: 'INR',
+        rating: 4.9,
+        reviewCount: 58,
         certified: true,
-        bio: 'Certified local cultural & heritage guide with 10+ years experience in Bali.',
+        bio: 'Certified local Goa heritage & beach tour expert with 8+ years experience in North & South Goa.',
       },
-      compatibilityScore: 92, // INTEGER 0-100
+      compatibilityScore: 94, // INTEGER 0-100
       sharedLanguages: ['en', 'hi'],
       sharedSpecialisations: ['heritage'],
     },
@@ -199,14 +199,14 @@ export const SoloMatchScreen: React.FC = () => {
                 label="City Name"
                 value={cityInput}
                 onChange={(e) => setCityInput(e.target.value)}
-                placeholder="e.g. Bali"
+                placeholder="e.g. Goa"
               />
               <Input
-                label="Max Budget"
+                label="Max Budget (INR)"
                 type="text"
                 value={budgetInput}
                 onChange={(e) => setBudgetInput(e.target.value)}
-                placeholder="e.g. 100.00"
+                placeholder="e.g. 3500.00"
               />
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-slate font-sans">Currency</label>
