@@ -12,7 +12,7 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({ currentUser })
   const isActive = (path: string) => location.pathname === path
 
   return (
-    <header className="bg-card border-b border-slate-light sticky top-0 z-40 shadow-xs px-4 sm:px-8 py-3 flex items-center justify-between">
+    <header className="bg-card border-b border-slate-light sticky top-0 z-40 shadow-xs px-4 sm:px-8 py-3.5 flex items-center justify-between">
       {/* Brand Header — Increased font size */}
       <Link
         to="/trips"
@@ -21,24 +21,24 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({ currentUser })
         WanderMatch
       </Link>
 
-      {/* Centered Navigation Switcher */}
-      <nav className="flex items-center gap-1 bg-paper p-1 rounded-[10px] border border-slate-light shadow-xs">
+      {/* Clean Un-enclosed Navigation Links */}
+      <nav className="flex items-center gap-8">
         <Link
           to="/trips"
-          className={`px-4 py-1.5 rounded-[8px] font-sans text-sm font-medium transition-all ${
+          className={`font-sans text-base font-semibold transition-all py-1 border-b-2 ${
             isActive('/trips')
-              ? 'bg-route text-card font-semibold shadow-xs'
-              : 'text-slate hover:text-ink'
+              ? 'border-route text-route'
+              : 'border-transparent text-slate hover:text-ink'
           }`}
         >
           My Trips
         </Link>
         <Link
           to="/solo"
-          className={`px-4 py-1.5 rounded-[8px] font-sans text-sm font-medium transition-all ${
+          className={`font-sans text-base font-semibold transition-all py-1 border-b-2 ${
             isActive('/solo')
-              ? 'bg-route text-card font-semibold shadow-xs'
-              : 'text-slate hover:text-ink'
+              ? 'border-route text-route'
+              : 'border-transparent text-slate hover:text-ink'
           }`}
         >
           Solo Matchmaker

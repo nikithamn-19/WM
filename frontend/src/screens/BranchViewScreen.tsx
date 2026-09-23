@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { getBranches, confirmBranch, modifyBranch } from '../lib/api'
-import { ChatDrawer } from '../components/chat/ChatDrawer'
 import { useAuthContext } from '../context/AuthContext'
 import { useTripContext } from '../context/TripContext'
 import type { Branch } from '../types/branch'
@@ -278,11 +277,6 @@ export const BranchViewScreen: React.FC = () => {
             </div>
           )}
         </main>
-
-        {/* Right side: Trip Chat Drawer */}
-        <aside className="hidden md:flex w-80 shrink-0">
-          <ChatDrawer trpId={trpId} isOpen={true} />
-        </aside>
       </div>
     </PageWrapper>
   )

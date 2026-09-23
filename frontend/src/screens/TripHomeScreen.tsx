@@ -12,8 +12,6 @@ import { useTripContext } from '../context/TripContext'
 import { getTrip, apiFetch } from '../lib/api'
 import { useAuthContext } from '../context/AuthContext'
 
-import { ChatDrawer } from '../components/chat/ChatDrawer'
-
 export const TripHomeScreen: React.FC = () => {
   const { trpId = 'trp_bali_2026' } = useParams()
   const navigate = useNavigate()
@@ -23,7 +21,6 @@ export const TripHomeScreen: React.FC = () => {
   const [activeSlot, setActiveSlot] = useState<ItineraryItem | null>(null)
   const [isVoteOpen, setIsVoteOpen] = useState(false)
   const [isProposeOpen, setIsProposeOpen] = useState(false)
-  const [isChatOpen, setIsChatOpen] = useState(false)
   const [tripMode, setTripMode] = useState<'Mode A' | 'Mode NA'>('Mode A')
   const [userRole] = useState<'owner' | 'editor' | 'viewer'>('owner')
   const [isLoading, setIsLoading] = useState(true)
@@ -185,7 +182,6 @@ export const TripHomeScreen: React.FC = () => {
       trpId={trpId}
       tripTitle={trip?.title || 'Bali Tropical Escape'}
       onlineMembers={trip?.members || dummyMembers}
-      onToggleChat={() => setIsChatOpen((prev) => !prev)}
     >
       <div className="flex flex-col md:flex-row relative">
         {/* Left column: Itinerary Timeline */}
@@ -273,22 +269,7 @@ export const TripHomeScreen: React.FC = () => {
             </div>
           )}
         </main>
-
-        {/* Right column: Trip Chat (desktop rail) */}
-        <aside className="hidden md:flex w-80 shrink-0">
-          <ChatDrawer trpId={trpId} isOpen={true} />
-        </aside>
       </div>
-
-      {/* Mobile Chat Drawer Overlay */}
-      {isChatOpen && (
-        <ChatDrawer
-          trpId={trpId}
-          isOpen={isChatOpen}
-          onClose={() => setIsChatOpen(false)}
-          isMobileDrawer={true}
-        />
-      )}
 
       {/* Floating sticky + Propose button on mobile */}
       <div className="md:hidden fixed bottom-4 right-4 z-30">

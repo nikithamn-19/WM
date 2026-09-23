@@ -11,6 +11,8 @@ import { BranchViewScreen } from './screens/BranchViewScreen'
 import { ResolvedItineraryScreen } from './screens/ResolvedItineraryScreen'
 import { AuditHistoryScreen } from './screens/AuditHistoryScreen'
 import { SoloMatchScreen } from './screens/SoloMatchScreen'
+import { TripChatScreen } from './screens/TripChatScreen'
+import { PhotosScreen } from './screens/PhotosScreen'
 import { AuthProvider } from './context/AuthContext'
 import { TripProvider, useTripContext } from './context/TripContext'
 import { Toast } from './components/ui/Toast'
@@ -52,6 +54,8 @@ export default function App() {
             <Route path="/trips/:trpId" element={<TripHomeScreen />} />
             <Route path="/trips/:trpId/branches/:itmId" element={<BranchViewScreen />} />
             <Route path="/trips/:trpId/resolved" element={<ResolvedItineraryScreen />} />
+            <Route path="/trips/:trpId/chat" element={<TripChatScreen />} />
+            <Route path="/trips/:trpId/photos" element={<PhotosScreen />} />
             <Route path="/trips/:trpId/history" element={<AuditHistoryScreen />} />
             <Route path="/solo" element={<SoloMatchScreen />} />
           </Routes>

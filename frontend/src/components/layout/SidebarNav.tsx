@@ -7,7 +7,6 @@ export interface SidebarNavProps {
   tripTitle?: string
   isMobileOpen?: boolean
   onCloseMobile?: () => void
-  onToggleChat?: () => void
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -15,7 +14,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   tripTitle,
   isMobileOpen = false,
   onCloseMobile,
-  onToggleChat,
 }) => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -61,7 +59,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           </div>
         )}
 
-        {/* Active Trip Nav Items (Exact Order) */}
+        {/* Active Trip Nav Items (Exact Order: Itinerary, Branches, Confirmed Schedule, Trip Chat, Photos, Audit Log) */}
         <div className="flex flex-col gap-1 mt-1">
           {/* 1. Itinerary Timeline */}
           <Link
@@ -111,7 +109,39 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             <span>Confirmed Schedule</span>
           </Link>
 
-          {/* 4. Photos & Audit Log */}
+          {/* 4. Trip Chat */}
+          <Link
+            to={`/trips/${trpId}/chat`}
+            onClick={onCloseMobile}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] font-sans text-sm font-medium transition-all min-h-[40px] ${
+              location.pathname.includes('/chat')
+                ? 'bg-route text-card font-semibold shadow-xs'
+                : 'text-slate hover:text-ink hover:bg-paper'
+            }`}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span>Trip Chat</span>
+          </Link>
+
+          {/* 5. Photos */}
+          <Link
+            to={`/trips/${trpId}/photos`}
+            onClick={onCloseMobile}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] font-sans text-sm font-medium transition-all min-h-[40px] ${
+              location.pathname.includes('/photos')
+                ? 'bg-route text-card font-semibold shadow-xs'
+                : 'text-slate hover:text-ink hover:bg-paper'
+            }`}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>Photos</span>
+          </Link>
+
+          {/* 6. Audit Log */}
           <Link
             to={`/trips/${trpId}/history`}
             onClick={onCloseMobile}
@@ -122,27 +152,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             }`}
           >
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span>Photos &amp; Audit Log</span>
+            <span>Audit Log</span>
           </Link>
-
-          {/* 5. Trip Chat */}
-          {onToggleChat && (
-            <button
-              type="button"
-              onClick={() => {
-                if (onCloseMobile) onCloseMobile()
-                onToggleChat()
-              }}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-[8px] font-sans text-sm font-medium transition-all min-h-[40px] text-slate hover:text-ink hover:bg-paper w-full text-left"
-            >
-              <svg className="w-4 h-4 shrink-0 text-route" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span>Trip Chat</span>
-            </button>
-          )}
         </div>
       </div>
 

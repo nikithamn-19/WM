@@ -93,7 +93,6 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({
         tripTitle={tripTitle}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        onToggleChat={onToggleChat}
       />
 
       {/* Main Trip Workspace Content */}
