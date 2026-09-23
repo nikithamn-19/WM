@@ -1,64 +1,47 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
 import { useAuthContext } from '../context/AuthContext'
-import { useTripContext } from '../context/TripContext'
-import { getTrip } from '../lib/api'
-import type { Trip } from '../types/trip'
 
 export interface ChatMessageItem {
   id: string
-  senderId: string
   senderName: string
   text: string
   timestamp: string
-  isEdited?: boolean
-  isDeleted?: boolean
+  isMe?: boolean
 }
 
 export const TripChatScreen: React.FC = () => {
-  const { trpId } = useParams<{ trpId: string }>()
+  const { trpId = 'trp_goa_2026' } = useParams()
   const { currentUser } = useAuthContext()
-  const { addToast } = useTripContext()
 
-  const [trip, setTrip] = useState<Trip | null>(null)
   const [messages, setMessages] = useState<ChatMessageItem[]>([
     {
-      id: 'msg_1',
-      senderId: 'usr_priya',
-      senderName: 'Priya Sharma',
-      text: 'Hey everyone! Excited for Goa 🏖️ Should we book the Dudhsagar Waterfalls trek for Day 2?',
+      id: 'm1',
+      senderName: 'Maya',
+      text: 'Hey everyone, are we still meeting at breakfast around 9?',
       timestamp: '10:14 AM',
+      isMe: false,
     },
     {
-      id: 'msg_2',
-      senderId: 'usr_owner',
-      senderName: 'Alex Chen',
-      text: 'Sounds awesome! I added Dudhsagar trek to our afternoon slot in the itinerary.',
-      timestamp: '10:18 AM',
+      id: 'm2',
+      senderName: 'Alex',
+      text: 'I think that works. We can head to the beach together afterwards.',
+      timestamp: '10:22 AM',
+      isMe: false,
     },
     {
-      id: 'msg_3',
-      senderId: 'usr_dev',
-      senderName: 'Dev Patel',
-      text: 'Count me in for seafood & sunset dinner at Britto’s in Baga Beach 🦀',
-      timestamp: '10:25 AM',
+      id: 'm3',
+      senderName: 'You',
+      text: "Sounds good! I'll be there.",
+      timestamp: '10:35 AM',
+      isMe: true,
     },
   ])
 
   const [inputText, setInputText] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!trpId) return
-    getTrip(trpId, async () => null)
-      .then((t) => setTrip(t))
-      .catch(() => null)
-  }, [trpId])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -70,180 +53,95 @@ export const TripChatScreen: React.FC = () => {
 
     const newMsg: ChatMessageItem = {
       id: `msg_${Date.now()}`,
-      senderId: currentUser?.usrId || 'usr_me',
-      senderName: currentUser?.displayName || 'Alex Chen',
+      senderName: currentUser?.displayName || 'You',
       text: inputText.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
     }
 
     setMessages((prev) => [...prev, newMsg])
     setInputText('')
   }
 
-  const handleStartEdit = (msg: ChatMessageItem) => {
-    setEditingId(msg.id)
-    setEditText(msg.text)
-  }
-
-  const handleSaveEdit = (id: string) => {
-    if (!editText.trim()) return
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, text: editText.trim(), isEdited: true } : m
-      )
-    )
-    setEditingId(null)
-    setEditText('')
-    addToast('Message updated', 'info')
-  }
-
-  const handleDelete = (id: string) => {
-    setMessages((prev) => prev.filter((m) => m.id !== id))
-    addToast('Message deleted', 'info')
-  }
-
   return (
-    <PageWrapper
-      trpId={trpId}
-      tripTitle={trip?.title || 'Goa Sunsets, Beaches & Heritage Getaway'}
-      mode={trip?.mode || 'Mode A'}
-    >
-      <div className="flex flex-col h-[calc(100vh-140px)] bg-card border border-slate-light rounded-[12px] shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-light bg-paper flex items-center justify-between">
-          <div>
-            <h1 className="font-serif text-xl font-bold text-ink">Trip Group Chat</h1>
-            <p className="text-xs font-mono text-slate">
-              {trip?.title || 'Goa Trip'} • {messages.length} Messages
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-mono text-xs text-slate">Online Discussion</span>
-          </div>
+    <PageWrapper trpId={trpId} tripTitle="Goa Getaway">
+      <div className="flex flex-col gap-4 max-w-4xl mx-auto h-[calc(100vh-160px)]">
+        {/* Header Title (PDF Page 15 Design) */}
+        <div className="text-center flex flex-col gap-1">
+          <h1 className="font-serif text-3xl font-bold text-ink">Goa Getaway</h1>
+          <p className="font-mono text-xs text-slate">June 12–15 • 6 members</p>
         </div>
 
-        {/* Message Stream */}
-        <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 bg-paper/30">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate font-mono text-sm">
-              No messages yet. Start the conversation!
+        {/* Day Tabs */}
+        <div className="flex items-center justify-center gap-4 border-b border-slate-light pb-2">
+          <span className="font-mono text-xs font-bold text-route border-b-2 border-route pb-1">
+            Day 1: Arrival
+          </span>
+          <span className="font-mono text-xs text-slate hover:text-ink cursor-pointer">
+            Day 2: Beach
+          </span>
+          <span className="font-mono text-xs text-slate hover:text-ink cursor-pointer">
+            Day 3: Explore
+          </span>
+        </div>
+
+        {/* Message Stream (PDF Page 15 Design) */}
+        <div className="flex-1 bg-card border border-slate-light rounded-[12px] p-6 overflow-y-auto flex flex-col gap-4 shadow-xs">
+          <div className="text-center font-mono text-[10px] text-slate uppercase tracking-wider my-2">
+            TODAY
+          </div>
+
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex flex-col gap-1 max-w-lg ${
+                msg.isMe ? 'self-end items-end' : 'self-start items-start'
+              }`}
+            >
+              <div className="flex items-center gap-2 px-1 font-mono text-[11px] text-slate">
+                <span className="font-bold text-ink">{msg.senderName}</span>
+                <span>{msg.timestamp}</span>
+              </div>
+
+              <div
+                className={`p-3.5 rounded-[12px] text-sm font-sans ${
+                  msg.isMe
+                    ? 'bg-route text-card rounded-tr-none shadow-xs font-medium'
+                    : 'bg-paper border border-slate-light text-ink rounded-tl-none shadow-xs'
+                }`}
+              >
+                {msg.text}
+              </div>
             </div>
-          ) : (
-            messages.map((msg) => {
-              const isMe = msg.senderId === (currentUser?.usrId || 'usr_me') || msg.senderName === 'Alex Chen'
-              const isEditing = editingId === msg.id
-
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex gap-3 max-w-2xl group ${
-                    isMe ? 'self-end flex-row-reverse' : 'self-start'
-                  }`}
-                >
-                  {/* Sender Avatar */}
-                  <div
-                    className={`w-9 h-9 rounded-full font-mono text-xs font-bold flex items-center justify-center shrink-0 border ${
-                      isMe
-                        ? 'bg-route text-card border-route'
-                        : 'bg-card text-ink border-slate-light'
-                    }`}
-                  >
-                    {msg.senderName.slice(0, 2).toUpperCase()}
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
-                    <div className="flex items-center gap-2 px-1">
-                      <span className="font-sans text-xs font-bold text-ink">
-                        {msg.senderName}
-                      </span>
-                      <span className="font-mono text-[10px] text-slate">{msg.timestamp}</span>
-                      {msg.isEdited && (
-                        <span className="font-mono text-[9px] text-slate italic">(edited)</span>
-                      )}
-                    </div>
-
-                    {isEditing ? (
-                      <div className="flex flex-col gap-2 p-3 bg-card border border-route rounded-[10px] min-w-[260px]">
-                        <Input
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          className="text-sm"
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="px-2 py-1 text-xs font-mono text-slate hover:text-ink"
-                          >
-                            Cancel
-                          </button>
-                          <Button
-                            onClick={() => handleSaveEdit(msg.id)}
-                            className="min-h-[36px] py-1 text-xs"
-                          >
-                            Save
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        className={`p-3.5 rounded-[12px] text-sm font-sans relative ${
-                          isMe
-                            ? 'bg-route text-card rounded-tr-none shadow-xs'
-                            : 'bg-card border border-slate-light text-ink rounded-tl-none shadow-xs'
-                        }`}
-                      >
-                        {msg.text}
-
-                        {/* Action buttons on hover */}
-                        <div
-                          className={`absolute top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-card border border-slate-light rounded-[6px] px-1.5 py-0.5 shadow-sm ${
-                            isMe ? '-left-16' : '-right-16'
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleStartEdit(msg)}
-                            title="Edit Message"
-                            className="p-1 text-slate hover:text-route text-xs"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(msg.id)}
-                            title="Delete Message"
-                            className="p-1 text-slate hover:text-clay text-xs"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
+          ))}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar */}
+        {/* Composer Bar (PDF Page 15 Design) */}
         <form
           onSubmit={handleSend}
-          className="p-4 bg-card border-t border-slate-light flex items-center gap-3"
+          className="bg-card border border-slate-light p-2.5 rounded-[12px] flex items-center gap-3 shadow-xs"
         >
+          <button
+            type="button"
+            className="p-2 text-slate hover:text-ink rounded-full"
+            title="Attach file"
+          >
+            📎
+          </button>
           <input
             type="text"
-            placeholder="Type a message to your trip members..."
+            placeholder="Type a message..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            className="flex-1 bg-paper border border-slate-light rounded-[8px] px-4 py-2.5 text-sm text-ink font-sans outline-none focus:border-route transition-all min-h-[44px]"
+            className="flex-1 bg-transparent border-none outline-none text-sm text-ink font-sans px-2"
           />
-          <Button type="submit" disabled={!inputText.trim()}>
-            Send
+          <Button
+            type="submit"
+            disabled={!inputText.trim()}
+            className="rounded-[8px] px-4 py-2 min-h-[38px]"
+          >
+            &gt;
           </Button>
         </form>
       </div>

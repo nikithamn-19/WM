@@ -1,249 +1,149 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
-import { CompatibilityCard } from '../components/solo/CompatibilityCard'
-import { GuideCard } from '../components/solo/GuideCard'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { EmptyState } from '../components/ui/EmptyState'
-import { apiFetch } from '../lib/api'
-import { useAuthContext } from '../context/AuthContext'
 import { useTripContext } from '../context/TripContext'
-import type { GroupMatch, GuideMatch } from '../types/solo'
+
+export interface PickedTrip {
+  id: string
+  title: string
+  matchPercentage: number
+  dates: string
+  location: string
+  tags: string[]
+  membersCount: number
+}
 
 export const SoloMatchScreen: React.FC = () => {
-  const { getToken } = useAuthContext()
+  const navigate = useNavigate()
   const { addToast } = useTripContext()
 
-  const [activeTab, setActiveTab] = useState<'groups' | 'guides'>('groups')
-  const [cityInput, setCityInput] = useState('Goa')
-  const [budgetInput, setBudgetInput] = useState('3500.00')
-  const [currency, setCurrency] = useState('INR')
-  const [isSearchingGroups, setIsSearchingGroups] = useState(false)
-  const [isSearchingGuides, setIsSearchingGuides] = useState(false)
+  const [destinationFilter, setDestinationFilter] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
 
-  const dummyGroupMatches: GroupMatch[] = [
+  const pickedTrips: PickedTrip[] = [
     {
-      trip: {
-        trpId: 'trp_goa_2026',
-        ownerId: 'usr_owner',
-        title: 'Goa Sunsets, Beaches & Heritage Getaway',
-        destinationCityId: 'Goa',
-        startDate: '2026-10-10',
-        endDate: '2026-10-16',
-        partySize: 4,
-        mode: 'Mode NA',
-        status: 'planning',
-        homeCurrency: 'INR',
-        members: [],
-      },
-      compatibilityScore: 88, // INTEGER 0-100
-      ageGroupMatch: true,
-      sharedLanguages: ['en', 'hi', 'kkn'],
-      sharedInterests: ['beach', 'food', 'heritage'],
-      dateOverlapDays: 5,
+      id: 'trp_goa_2026',
+      title: 'Goa Sunsets & Beach Getaway',
+      matchPercentage: 94,
+      dates: '14-22 OCT',
+      location: 'Goa, India',
+      tags: ['Shared: Beach', 'Same age group', 'Overlapping dates'],
+      membersCount: 3,
+    },
+    {
+      id: 'trp_kerala_2026',
+      title: 'Kerala Backwaters & Houseboat Retreat',
+      matchPercentage: 88,
+      dates: '05-12 SEP',
+      location: 'Kochi, Kerala',
+      tags: ['Shared: Culture', 'Foodies', 'Relaxed Pace'],
+      membersCount: 2,
+    },
+    {
+      id: 'trp_jaipur_2026',
+      title: 'Jaipur Heritage & Forts Trail',
+      matchPercentage: 85,
+      dates: '10-20 NOV',
+      location: 'Jaipur, Rajasthan',
+      tags: ['Photography', 'Same age group'],
+      membersCount: 4,
     },
   ]
 
-  const dummyGuideMatches: GuideMatch[] = [
-    {
-      guide: {
-        gidId: 'gid_goa_01',
-        cityId: 'Goa',
-        displayName: 'Rohan Fernandes',
-        languages: ['en', 'hi', 'kkn'],
-        specialisation: 'heritage & beach tours',
-        dayRate: '3500.00',
-        halfDayRate: '2000.00',
-        currency: 'INR',
-        rating: 4.9,
-        reviewCount: 58,
-        certified: true,
-        bio: 'Certified local Goa heritage & beach tour expert with 8+ years experience in North & South Goa.',
-      },
-      compatibilityScore: 94, // INTEGER 0-100
-      sharedLanguages: ['en', 'hi'],
-      sharedSpecialisations: ['heritage'],
-    },
-  ]
-
-  const [groupMatches, setGroupMatches] = useState<GroupMatch[]>(dummyGroupMatches)
-  const [guideMatches, setGuideMatches] = useState<GuideMatch[]>(dummyGuideMatches)
-
-  const handleSearchGroups = async () => {
-    setIsSearchingGroups(true)
-    try {
-      const data = await apiFetch<GroupMatch[]>('/api/solo-matching/groups', {
-        method: 'POST',
-      }, getToken).catch(() => null)
-
-      if (data && data.length > 0) {
-        setGroupMatches(data)
-      } else {
-        setGroupMatches(dummyGroupMatches)
-      }
-      addToast('Found matching trips!', 'success')
-    } catch {
-      addToast('Search complete', 'info')
-    } finally {
-      setIsSearchingGroups(false)
-    }
-  }
-
-  const handleSearchGuides = async () => {
-    setIsSearchingGuides(true)
-    try {
-      const data = await apiFetch<GuideMatch[]>('/api/solo-matching/guides', {
-        method: 'POST',
-        body: JSON.stringify({
-          city: cityInput,
-          maxBudget: budgetInput,
-          currency,
-        }),
-      }, getToken).catch(() => null)
-
-      if (data && data.length > 0) {
-        setGuideMatches(data)
-      } else {
-        setGuideMatches(dummyGuideMatches)
-      }
-      addToast('Found matching guides!', 'success')
-    } catch {
-      addToast('Search complete', 'info')
-    } finally {
-      setIsSearchingGuides(false)
-    }
-  }
-
-  const handleJoinTrip = async (trpId: string) => {
-    try {
-      await apiFetch(`/api/trips/${trpId}/members`, {
-        method: 'POST',
-      }, getToken).catch(() => null)
-      addToast('Join request sent to trip owner!', 'success')
-    } catch {
-      addToast('Failed to send join request', 'conflict')
-    }
+  const handleRequestJoin = (tripTitle: string) => {
+    addToast(`Request to join "${tripTitle}" sent to trip owner!`, 'success')
   }
 
   return (
     <PageWrapper>
       <div className="flex flex-col gap-6">
+        {/* Page Header (PDF Page 8 Design) */}
         <div>
-          <h1 className="font-serif text-3xl font-bold text-ink">Solo Matchmaker</h1>
+          <h1 className="font-serif text-3xl font-bold text-ink">Trips picked for you</h1>
+          <p className="font-sans text-xs text-slate mt-1">
+            Based on your travel preferences
+          </p>
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex gap-2 border-b border-slate-light pb-2">
-          <button
-            onClick={() => setActiveTab('groups')}
-            className={`px-4 py-2 rounded-[8px] font-mono text-xs font-medium capitalize transition-colors min-h-[44px] ${
-              activeTab === 'groups'
-                ? 'bg-route text-card font-bold shadow-sm'
-                : 'text-slate hover:text-ink'
-            }`}
-          >
-            Find a Group
-          </button>
-          <button
-            onClick={() => setActiveTab('guides')}
-            className={`px-4 py-2 rounded-[8px] font-mono text-xs font-medium capitalize transition-colors min-h-[44px] ${
-              activeTab === 'guides'
-                ? 'bg-route text-card font-bold shadow-sm'
-                : 'text-slate hover:text-ink'
-            }`}
-          >
-            Find a Guide
-          </button>
+        {/* Informational banner */}
+        <div className="bg-paper border border-slate-light p-3.5 rounded-[8px] text-xs font-mono text-slate">
+          ⚡ These trips are ranked by how well they match your selected interests, age group, and preferred travel pace from your profile.
         </div>
 
-        {/* Tab 1 — Find a Group */}
-        {activeTab === 'groups' && (
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-card border border-slate-light p-4 rounded-[10px] shadow-sm">
-              <span className="text-xs font-mono text-slate">
-                Match against active group trips matching your style &amp; dates
-              </span>
-              <Button
-                onClick={handleSearchGroups}
-                disabled={isSearchingGroups}
-                className="w-full sm:w-auto"
-              >
-                {isSearchingGroups ? 'Matching...' : 'Find Trips for Me'}
-              </Button>
-            </div>
+        {/* Filter Inputs Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-card border border-slate-light p-4 rounded-[10px] shadow-xs">
+          <Input
+            label="Destination"
+            value={destinationFilter}
+            onChange={(e) => setDestinationFilter(e.target.value)}
+            placeholder="e.g. Goa, Kerala"
+          />
+          <Input
+            label="Dates"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            placeholder="e.g. Oct 2026"
+          />
+        </div>
 
-            {groupMatches.length === 0 ? (
-              <EmptyState
-                title="No matching trips found"
-                message="No matching trips found — try adjusting your preferences in your profile"
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {groupMatches.map((m) => (
-                  <CompatibilityCard
-                    key={m.trip.trpId}
-                    match={m}
-                    onJoinClick={() => handleJoinTrip(m.trip.trpId)}
-                  />
-                ))}
+        {/* Ranked Trip Cards Grid (PDF Page 8 Card Layout) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {pickedTrips.map((trip) => (
+            <div
+              key={trip.id}
+              className="bg-card border border-slate-light rounded-[12px] p-5 shadow-xs flex flex-col justify-between gap-5 hover:border-route transition-all"
+            >
+              <div className="flex flex-col gap-3">
+                {/* Header Title + Match Badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-serif text-lg font-bold text-ink leading-snug">
+                    {trip.title}
+                  </h3>
+                  <span className="bg-emerald-100 text-emerald-900 text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 shrink-0">
+                    {trip.matchPercentage}% Match
+                  </span>
+                </div>
+
+                {/* Dates & Location */}
+                <div className="font-mono text-xs text-slate flex flex-col gap-1">
+                  <span>📅 {trip.dates}</span>
+                  <span>📍 {trip.location}</span>
+                </div>
+
+                {/* Shared Interest Tags */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {trip.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-paper border border-slate-light text-slate text-[10px] font-sans px-2.5 py-1 rounded-[6px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Tab 2 — Find a Guide */}
-        {activeTab === 'guides' && (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-card border border-slate-light p-4 rounded-[10px] shadow-sm items-end">
-              <Input
-                label="City Name"
-                value={cityInput}
-                onChange={(e) => setCityInput(e.target.value)}
-                placeholder="e.g. Goa"
-              />
-              <Input
-                label="Max Budget (INR)"
-                type="text"
-                value={budgetInput}
-                onChange={(e) => setBudgetInput(e.target.value)}
-                placeholder="e.g. 3500.00"
-              />
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate font-sans">Currency</label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="bg-paper border border-slate-light rounded-[8px] px-3 py-2 text-sm text-ink font-sans outline-none min-h-[44px]"
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-slate-light/60">
+                <Button
+                  onClick={() => handleRequestJoin(trip.title)}
+                  className="w-full py-2 text-xs"
                 >
-                  <option value="USD">USD</option>
-                  <option value="INR">INR</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                </select>
+                  Request to join
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/trips/${trip.id}/preview`)}
+                  className="w-full py-2 text-xs"
+                >
+                  View Trip
+                </Button>
               </div>
-              <Button
-                onClick={handleSearchGuides}
-                disabled={isSearchingGuides}
-                className="w-full"
-              >
-                {isSearchingGuides ? 'Searching...' : 'Find Guides'}
-              </Button>
             </div>
-
-            {guideMatches.length === 0 ? (
-              <EmptyState
-                title="No guides found"
-                message="No certified guides found for this city and budget criteria."
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {guideMatches.map((g) => (
-                  <GuideCard key={g.guide.gidId} match={g} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+          ))}
+        </div>
       </div>
     </PageWrapper>
   )

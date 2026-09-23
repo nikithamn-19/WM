@@ -1,282 +1,241 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
-import { getBranches, confirmBranch, modifyBranch } from '../lib/api'
-import { useAuthContext } from '../context/AuthContext'
 import { useTripContext } from '../context/TripContext'
-import type { Branch } from '../types/branch'
+
+export interface ProposalOption {
+  id: string
+  tag: 'INITIAL PLAN' | 'AI SUGGESTION' | 'MEMBER PROPOSAL'
+  title: string
+  whyCreated: string
+  yesVotes: number
+  noVotes: number
+  userVote?: 'yes' | 'no'
+}
 
 export const BranchViewScreen: React.FC = () => {
-  const { trpId = 'trp_goa_2026', itmId = 'itm_b4' } = useParams()
+  const { trpId = 'trp_goa_2026' } = useParams()
   const navigate = useNavigate()
-  const { getToken, currentUser } = useAuthContext()
   const { addToast } = useTripContext()
 
-  const [branches, setBranches] = useState<Branch[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [modifyingBranchId, setModifyingBranchId] = useState<string | null>(null)
-  const [modificationComment, setModificationComment] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const currentUserId = currentUser?.usrId || 'usr_owner'
-
-  const dummyFallbackBranches: Branch[] = [
+  const [options, setOptions] = useState<ProposalOption[]>([
     {
-      brcId: 'brc_1',
-      itmId,
-      parentBranchId: null,
-      title: 'Mandovi River Sunset Cruise & Dinner',
-      rationale: 'Relaxed river cruise with Goan folk dance and seafood dinner.',
-      entityType: 'poi',
-      entityId: 'poi_mandovi_cruise',
-      costDelta: '2200.00',
-      currency: 'INR',
-      status: 'OPEN',
-      members: [
-        { bmcId: 'bmb_1', brcId: 'brc_1', usrId: 'usr_owner', displayName: 'Alex Chen' },
-        { bmcId: 'bmb_2', brcId: 'brc_1', usrId: 'usr_priya', displayName: 'Priya Sharma' },
-      ],
+      id: 'opt_1',
+      tag: 'INITIAL PLAN',
+      title: 'Anjuna Beach',
+      whyCreated: 'The original plan still has support from members who prefer a lively beach experience.',
+      yesVotes: 2,
+      noVotes: 1,
     },
     {
-      brcId: 'brc_2',
-      itmId,
-      parentBranchId: null,
-      title: 'Anjuna Beach Shack & Live Music Night',
-      rationale: 'Vibrant beachside dinner with live acoustic music and bonfire.',
-      entityType: 'poi',
-      entityId: 'poi_anjuna_shack',
-      costDelta: '1800.00',
-      currency: 'INR',
-      status: 'FINALIZED',
-      members: [
-        { bmcId: 'bmb_3', brcId: 'brc_2', usrId: 'usr_jordan', displayName: 'Jordan Lee' },
-      ],
+      id: 'opt_2',
+      tag: 'AI SUGGESTION',
+      title: 'Candolim Beach',
+      whyCreated: "Created to address concerns about crowds while preserving the group's preference for a relaxed beach activity.",
+      yesVotes: 0,
+      noVotes: 0,
     },
-  ]
+    {
+      id: 'opt_3',
+      tag: 'MEMBER PROPOSAL',
+      title: 'Fort Aguada + Beach',
+      whyCreated: 'Accommodates members who wanted sightseeing while keeping part of the original beach experience.',
+      yesVotes: 1,
+      noVotes: 0,
+    },
+  ])
 
-  useEffect(() => {
-    let isMounted = true
-    setIsLoading(true)
+  const handleVote = (id: string, vote: 'yes' | 'no') => {
+    setOptions((prev) =>
+      prev.map((opt) => {
+        if (opt.id !== id) return opt
+        const prevVote = opt.userVote
+        let newYes = opt.yesVotes
+        let newNo = opt.noVotes
 
-    getBranches(itmId, getToken)
-      .then((data) => {
-        if (isMounted) {
-          setBranches(data && data.length > 0 ? data : dummyFallbackBranches)
-        }
+        if (prevVote === 'yes') newYes--
+        if (prevVote === 'no') newNo--
+
+        if (vote === 'yes') newYes++
+        if (vote === 'no') newNo++
+
+        return { ...opt, userVote: vote, yesVotes: newYes, noVotes: newNo }
       })
-      .catch(() => {
-        if (isMounted) {
-          setBranches(dummyFallbackBranches)
-        }
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [itmId, getToken])
-
-  const handleConfirm = async (brcId: string) => {
-    setIsSubmitting(true)
-    try {
-      await confirmBranch(brcId, getToken).catch(() => null)
-      addToast('Branch confirmed successfully!', 'success')
-      setBranches((prev) =>
-        prev.map((b) => (b.brcId === brcId ? { ...b, status: 'FINALIZED' } : b))
-      )
-    } catch {
-      addToast('Failed to confirm branch', 'conflict')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleModifySubmit = async (brcId: string) => {
-    if (!modificationComment.trim()) {
-      addToast('Please enter a modification request.', 'conflict')
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      await modifyBranch(brcId, modificationComment.trim(), getToken).catch(() => null)
-      addToast('Modification request sent to branch members!', 'info')
-      setModifyingBranchId(null)
-      setModificationComment('')
-    } catch {
-      addToast('Failed to send modification request', 'conflict')
-    } finally {
-      setIsSubmitting(false)
-    }
+    )
+    addToast(`Vote cast (${vote.toUpperCase()})`, 'success')
   }
 
   return (
-    <PageWrapper mode="Mode NA" trpId={trpId} tripTitle="Parallel Branches">
-      <div className="flex flex-col md:flex-row">
-        {/* Left main content */}
-        <main className="flex-1 p-6 max-w-5xl mx-auto w-full flex flex-col gap-6">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-light pb-4">
-            <div>
-              <span className="font-mono text-xs font-bold text-clay uppercase tracking-wide">
-                PARALLEL BRANCH FORK
+    <PageWrapper trpId={trpId} tripTitle="Goa Getaway">
+      <div className="flex flex-col gap-6 max-w-5xl mx-auto">
+        {/* Header Title (PDF Page 13 Design) */}
+        <div className="text-center flex flex-col gap-1">
+          <h1 className="font-serif text-3xl font-bold text-ink">Goa Getaway</h1>
+          <p className="font-mono text-xs text-slate">Day 1: Arrival • 12:00 PM • 6 members</p>
+        </div>
+
+        {/* Day Navigation Bar */}
+        <div className="flex items-center justify-between border-b border-slate-light pb-2">
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-xs font-bold text-route border-b-2 border-route pb-1">
+              Day 1
+            </span>
+            <span className="font-mono text-xs text-slate hover:text-ink cursor-pointer">
+              Day 2
+            </span>
+            <span className="font-mono text-xs text-slate hover:text-ink cursor-pointer">
+              Day 3
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/trips/${trpId}`)}
+            className="font-mono text-xs text-route font-bold hover:underline"
+          >
+            &larr; Back to Plan
+          </button>
+        </div>
+
+        {/* Live Voting Status Bar (PDF Page 13 Design) */}
+        <div className="bg-paper border border-slate-light rounded-[10px] p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2 font-mono text-xs text-slate">
+            <span>👥</span>
+            <span>Collecting preferences — 4 of 6 members responded</span>
+          </div>
+          <div className="bg-amber-100 border border-amber-300 text-amber-900 font-mono text-xs font-bold px-3 py-1 rounded-full">
+            ⏱ Round 1 ends in 06:42
+          </div>
+        </div>
+
+        {/* Round 1 — Resolution Options Header */}
+        <div className="flex items-center justify-between pt-2">
+          <div>
+            <h2 className="font-serif text-xl font-bold text-ink">Round 1 — Resolution Options</h2>
+            <p className="font-mono text-xs text-slate">Vote to lock in a plan</p>
+          </div>
+
+          <Button
+            onClick={() => addToast('Opening proposal form...', 'info')}
+            className="text-xs py-1.5 px-3 min-h-[36px]"
+          >
+            + Propose Activity
+          </Button>
+        </div>
+
+        {/* Side-by-Side Resolution Options Cards (PDF Page 13 Design) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {options.map((opt) => (
+            <div
+              key={opt.id}
+              className="bg-card border border-slate-light rounded-[12px] overflow-hidden shadow-xs flex flex-col justify-between hover:border-route transition-all"
+            >
+              <div>
+                {/* Image Header */}
+                <div className="relative aspect-video bg-paper overflow-hidden">
+                  <img
+                    src="https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80"
+                    alt={opt.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute top-2 left-2 bg-ink/80 text-card font-mono text-[9px] font-bold px-2 py-0.5 rounded">
+                    {opt.tag}
+                  </span>
+                </div>
+
+                <div className="p-4 flex flex-col gap-2">
+                  <h3 className="font-serif text-lg font-bold text-ink">
+                    {opt.title}
+                  </h3>
+
+                  <span className="font-mono text-[10px] text-slate font-bold uppercase">
+                    WHY THIS PLAN:
+                  </span>
+                  <p className="font-sans text-xs text-slate leading-relaxed">
+                    {opt.whyCreated}
+                  </p>
+
+                  <div className="font-mono text-xs text-slate pt-2 border-t border-slate-light/60">
+                    Current Votes: <strong className="text-emerald-700">{opt.yesVotes} Yes</strong> • <strong className="text-clay">{opt.noVotes} No</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vote Buttons */}
+              <div className="p-4 pt-0 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleVote(opt.id, 'no')}
+                  className={`flex-1 py-1.5 rounded-[8px] font-mono text-xs font-bold transition-all border ${
+                    opt.userVote === 'no'
+                      ? 'bg-clay text-card border-clay shadow-xs'
+                      : 'bg-paper text-clay border-clay/30 hover:bg-clay/10'
+                  }`}
+                >
+                  ✕ No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleVote(opt.id, 'yes')}
+                  className={`flex-1 py-1.5 rounded-[8px] font-mono text-xs font-bold transition-all border ${
+                    opt.userVote === 'yes'
+                      ? 'bg-emerald-700 text-card border-emerald-700 shadow-xs'
+                      : 'bg-paper text-emerald-700 border-emerald-700/30 hover:bg-emerald-50'
+                  }`}
+                >
+                  ✓ Yes
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* AI Concierge Panel (PDF Page 13 Design) */}
+        <div className="bg-paper border border-slate-light rounded-[12px] p-6 shadow-xs flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-route text-card font-mono text-xs font-bold flex items-center justify-center">
+              🤖
+            </span>
+            <h3 className="font-serif text-base font-bold text-ink">
+              AI Concierge — Round 1 Analysis
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans text-xs text-slate">
+            <div className="flex flex-col gap-1 p-3 bg-card rounded-[8px] border border-slate-light">
+              <span className="font-mono text-[10px] font-bold text-ink uppercase">
+                WHAT HAPPENED
               </span>
-              <h1 className="font-serif text-3xl font-bold text-ink mt-1">
-                Branch Resolution: Slot {itmId}
-              </h1>
-              <p className="font-sans text-sm text-slate mt-0.5">
-                Group preferences differed — branches allow members to enjoy separate activities.
+              <p>
+                Candolim received mixed votes, while Fort Aguada gained support from 50% of active voters.
               </p>
             </div>
-            <Button variant="secondary" onClick={() => navigate(`/trips/${trpId}`)}>
-              &larr; Back to Trip
-            </Button>
+
+            <div className="flex flex-col gap-1 p-3 bg-card rounded-[8px] border border-slate-light">
+              <span className="font-mono text-[10px] font-bold text-ink uppercase">
+                WHAT CONCERNS REMAIN
+              </span>
+              <p>
+                The group is split 50/50 between sightseeing and wanting a purely beach-focused afternoon.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1 p-3 bg-card rounded-[8px] border border-slate-light">
+              <span className="font-mono text-[10px] font-bold text-ink uppercase">
+                WHAT I RECOMMEND NEXT
+              </span>
+              <p>
+                I will propose a split itinerary for the afternoon, reuniting for dinner at a central location.
+              </p>
+            </div>
           </div>
+        </div>
 
-          {/* Clay-colored Route Line forking visual */}
-          <div className="bg-paper border border-clay/30 rounded-[10px] p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between font-mono text-xs text-clay">
-              <span className="font-bold">FORK POINT &rarr; {branches.length} PARALLEL BRANCHES</span>
-              <span>INDEPENDENT TIMELINES</span>
-            </div>
-            <div className="relative h-2 bg-clay/20 rounded-full w-full overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 bg-clay w-1/3 rounded-full"></div>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="p-12 text-center font-mono text-sm text-slate animate-pulse">
-              Loading branches...
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {branches.map((branch) => {
-                const isMemberInBranch = branch.members.some((m) => m.usrId === currentUserId)
-                const isFinalized = branch.status === 'FINALIZED'
-                const isOneMember = branch.members.length === 1
-
-                return (
-                  <div
-                    key={branch.brcId}
-                    className="bg-card rounded-[10px] border border-slate-light border-l-2 border-l-clay p-5 shadow-sm flex flex-col justify-between gap-4"
-                  >
-                    <div className="flex flex-col gap-3">
-                      {/* Title & Status */}
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-sans font-medium text-ink text-lg leading-snug">
-                          {branch.title}
-                        </h3>
-
-                        {isFinalized && (
-                          <span className="bg-amber/10 text-amber border border-amber/20 font-mono uppercase text-xs px-2.5 py-1 rounded-full font-bold whitespace-nowrap">
-                            Auto-Resolved
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Rationale */}
-                      <p className="font-sans text-sm text-slate">{branch.rationale}</p>
-
-                      {/* Cost Delta */}
-                      <div className="font-mono text-sm text-clay font-semibold">
-                        +${branch.costDelta} {branch.currency}
-                      </div>
-
-                      {/* Members Avatar Stack */}
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-light/40">
-                        <span className="font-mono text-xs text-slate">Members:</span>
-                        <div className="flex items-center -space-x-1.5">
-                          {branch.members.map((m) => (
-                            <div
-                              key={m.bmcId}
-                              title={m.displayName}
-                              className="w-7 h-7 rounded-full bg-clay text-card text-[10px] font-mono font-bold flex items-center justify-center border-2 border-card"
-                            >
-                              {m.displayName.slice(0, 2).toUpperCase()}
-                            </div>
-                          ))}
-                        </div>
-                        <span className="font-sans text-xs text-slate ml-1">
-                          ({branch.members.map((m) => m.displayName).join(', ')})
-                        </span>
-                      </div>
-
-                      {/* Finalized text */}
-                      {isFinalized && isOneMember && (
-                        <p className="text-slate text-sm font-sans italic bg-slate-light/20 p-2.5 rounded-[8px]">
-                          This branch had one member — their preference was automatically finalized.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Action Controls for Members */}
-                    {isMemberInBranch && !isFinalized && (
-                      <div className="flex flex-col gap-3 pt-3 border-t border-slate-light">
-                        {modifyingBranchId === branch.brcId ? (
-                          <div className="flex flex-col gap-2">
-                            <textarea
-                              value={modificationComment}
-                              onChange={(e) => setModificationComment(e.target.value)}
-                              placeholder="Describe your requested change for branch members..."
-                              className="w-full bg-paper border border-slate-light rounded-[8px] p-2.5 text-xs font-sans text-ink focus:border-route outline-none min-h-[70px]"
-                            />
-                            <div className="flex items-center gap-2">
-                              <Button
-                                onClick={() => handleModifySubmit(branch.brcId)}
-                                disabled={isSubmitting}
-                                className="text-xs py-1.5 flex-1"
-                              >
-                                Send Request
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                onClick={() => setModifyingBranchId(null)}
-                                className="text-xs py-1.5"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <Button
-                                onClick={() => handleConfirm(branch.brcId)}
-                                disabled={isSubmitting}
-                                className="flex-1 text-xs py-2"
-                              >
-                                Confirm Branch
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                onClick={() => setModifyingBranchId(branch.brcId)}
-                                className="flex-1 text-xs py-2 border-clay text-clay hover:bg-clay/10"
-                              >
-                                Request Modification
-                              </Button>
-                            </div>
-                            <span className="font-mono text-xs text-slate text-center">
-                              Will auto-accept when window closes
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {!isMemberInBranch && (
-                      <div className="text-xs font-mono text-slate text-center pt-2 border-t border-slate-light/40 italic">
-                        Read-only (You are in a different branch)
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </main>
+        {/* Queued Round 2 Indicator (PDF Page 13 Design) */}
+        <div className="p-4 bg-card border border-slate-light rounded-[12px] text-center font-mono text-xs text-slate opacity-75">
+          ⌛ Round 2 — Updated Options (Generating based on feedback...)
+        </div>
       </div>
     </PageWrapper>
   )

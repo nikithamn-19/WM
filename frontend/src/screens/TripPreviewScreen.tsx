@@ -1,175 +1,128 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
-import { RouteLine } from '../components/itinerary/RouteLine'
-import { getTrip, apiFetch } from '../lib/api'
-import { useAuthContext } from '../context/AuthContext'
-import { useTripContext } from '../context/TripContext'
-import type { Trip, ItineraryItem } from '../types/trip'
 
 export const TripPreviewScreen: React.FC = () => {
-  const { trpId = 'trp_bali_2026' } = useParams()
+  const { trpId = 'trp_goa_2026' } = useParams()
   const navigate = useNavigate()
-  const { getToken } = useAuthContext()
-  const { addToast } = useTripContext()
-
-  const [trip, setTripData] = useState<Trip | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isJoining, setIsJoining] = useState(false)
-
-  const previewSlots: ItineraryItem[] = [
-    {
-      itmId: 'prev_1',
-      itnId: 'itn_prev',
-      dayIndex: 1,
-      sortOrder: 1,
-      title: 'Morning Slot',
-      cost: '0.00',
-      currency: 'USD',
-      slotStatus: 'EMPTY',
-      locked: false,
-      status: 'proposed',
-      itemType: 'free',
-      entityType: null,
-      entityId: null,
-      startsAt: null,
-      endsAt: null,
-      timeSlot: 'Morning',
-    },
-    {
-      itmId: 'prev_2',
-      itnId: 'itn_prev',
-      dayIndex: 1,
-      sortOrder: 2,
-      title: 'Afternoon Slot',
-      cost: '0.00',
-      currency: 'USD',
-      slotStatus: 'EMPTY',
-      locked: false,
-      status: 'proposed',
-      itemType: 'free',
-      entityType: null,
-      entityId: null,
-      startsAt: null,
-      endsAt: null,
-      timeSlot: 'Afternoon',
-    },
-    {
-      itmId: 'prev_3',
-      itnId: 'itn_prev',
-      dayIndex: 1,
-      sortOrder: 3,
-      title: 'Evening Slot',
-      cost: '0.00',
-      currency: 'USD',
-      slotStatus: 'EMPTY',
-      locked: false,
-      status: 'proposed',
-      itemType: 'free',
-      entityType: null,
-      entityId: null,
-      startsAt: null,
-      endsAt: null,
-      timeSlot: 'Evening',
-    },
-  ]
-
-  useEffect(() => {
-    let isMounted = true
-    setIsLoading(true)
-
-    getTrip(trpId, getToken)
-      .then((data) => {
-        if (isMounted && data) setTripData(data)
-      })
-      .catch(() => {
-        // Dev fallback mode
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [trpId, getToken])
-
-  const handleJoinTrip = async () => {
-    setIsJoining(true)
-    try {
-      await apiFetch(`/api/trips/${trpId}/members`, {
-        method: 'POST',
-      }, getToken).catch(() => null)
-
-      addToast('Welcome to the trip! You are now a member.', 'success')
-      navigate(`/trips/${trpId}`)
-    } catch {
-      addToast('Welcome to the trip!', 'success')
-      navigate(`/trips/${trpId}`)
-    } finally {
-      setIsJoining(false)
-    }
-  }
 
   return (
-    <PageWrapper mode={trip?.mode || 'Mode NA'} trpId={trpId} tripTitle="Trip Preview">
-      <div className="max-w-3xl mx-auto p-6 flex flex-col gap-6">
-        {isLoading ? (
-          <div className="p-12 text-center font-mono text-sm text-slate animate-pulse">
-            Loading trip preview...
+    <PageWrapper>
+      <div className="max-w-2xl mx-auto py-8 px-4 flex flex-col items-center gap-6">
+        {/* Badge & Welcome Header (PDF Page 11 Design) */}
+        <div className="flex flex-col items-center text-center gap-1.5">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 flex items-center justify-center font-bold text-sm">
+            ✓
           </div>
-        ) : (
-          <div className="bg-card border border-slate-light rounded-[10px] p-8 shadow-sm flex flex-col gap-5 text-center items-center">
-            <span className="font-mono text-xs text-route uppercase font-bold tracking-wide">
-              YOU ARE INVITED TO JOIN
-            </span>
+          <span className="font-mono text-[11px] text-slate font-bold uppercase tracking-wider">
+            JOIN REQUEST ACCEPTED
+          </span>
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink">
+            Welcome aboard.
+          </h1>
+        </div>
 
-            <h1 className="font-serif text-4xl font-bold text-ink">
-              {trip?.title || 'Bali Tropical Escape'}
-            </h1>
-
-            <div className="flex flex-wrap items-center justify-center gap-3 font-mono text-xs text-slate">
-              <span>Destination: {trip?.destinationCityId || 'Bali'}</span>
-              <span>•</span>
-              <span>
-                {trip?.startDate || '2026-10-10'} to {trip?.endDate || '2026-10-16'}
-              </span>
-              <span>•</span>
-              <span>{trip?.members?.length || 4} Members</span>
-              <span>•</span>
-              <span className="bg-route/10 text-route px-2.5 py-0.5 rounded-full font-bold">
-                {trip?.mode || 'Mode NA'}
-              </span>
-            </div>
-
-            <Button onClick={handleJoinTrip} disabled={isJoining} className="px-8 py-3 text-base mt-2">
-              {isJoining ? 'Joining...' : 'Join Trip'}
-            </Button>
-          </div>
-        )}
-
-        {/* Condensed Route Line showing empty slots prior to joining */}
-        <div className="bg-card border border-slate-light rounded-[10px] p-6 shadow-sm flex flex-col gap-4">
-          <h3 className="font-serif text-lg font-bold text-ink">Itinerary Skeleton Preview</h3>
-          <p className="font-sans text-xs text-slate">
-            Join the group to view activity proposals, vote on plans, and propose activities.
-          </p>
-
-          <div className="flex gap-4 pt-2">
-            <RouteLine slots={previewSlots} />
-            <div className="flex-1 flex flex-col gap-3">
-              {previewSlots.map((slot) => (
-                <div
-                  key={slot.itmId}
-                  className="bg-paper border border-dashed border-slate-light p-4 rounded-[8px] flex items-center justify-between"
-                >
-                  <span className="font-mono text-xs text-slate">{slot.timeSlot}</span>
-                  <span className="font-sans text-xs text-slate italic">
-                    Proposals hidden until joined
+        {/* Hero Card Banner */}
+        <div className="w-full bg-card border border-slate-light rounded-[16px] overflow-hidden shadow-sm flex flex-col gap-6">
+          <div className="relative aspect-[16/8] bg-paper overflow-hidden">
+            <img
+              src="https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80"
+              alt="Goa Getaway"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent flex items-end p-6">
+              <div className="flex items-center justify-between w-full text-card">
+                <div>
+                  <h2 className="font-serif text-2xl font-bold">
+                    Goa Sunsets &amp; Beach Getaway
+                  </h2>
+                  <span className="font-mono text-xs text-card/80">
+                    OCT 12 – OCT 18, 2026
                   </span>
                 </div>
-              ))}
+                <div className="flex items-center -space-x-2">
+                  <div className="w-8 h-8 rounded-full bg-route text-card font-mono text-xs font-bold flex items-center justify-center border-2 border-card">
+                    AC
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-slate text-card font-mono text-xs font-bold flex items-center justify-center border-2 border-card">
+                    PS
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-slate-light text-slate font-mono text-xs font-bold flex items-center justify-center border-2 border-card">
+                    +2
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Itinerary Preview Section */}
+          <div className="p-6 flex flex-col gap-4">
+            <span className="font-mono text-xs font-bold text-slate uppercase tracking-wider">
+              ITINERARY PREVIEW
+            </span>
+
+            <div className="flex flex-col gap-3">
+              {/* Item 1 */}
+              <div className="p-4 bg-paper border border-slate-light rounded-[10px] flex items-center justify-between">
+                <div>
+                  <h4 className="font-sans text-sm font-bold text-ink">
+                    Baga Beach Water Sports &amp; Arrival
+                  </h4>
+                  <span className="font-mono text-xs text-slate">
+                    Calangute • 14:00
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  Confirmed
+                </span>
+              </div>
+
+              {/* Item 2 */}
+              <div className="p-4 bg-paper border border-slate-light rounded-[10px] flex items-center justify-between">
+                <div>
+                  <h4 className="font-sans text-sm font-bold text-ink">
+                    Dudhsagar Jeep Safari &amp; Trek
+                  </h4>
+                  <span className="font-mono text-xs text-slate">
+                    Mollem • 09:00 - 16:00
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                  Needs Vote
+                </span>
+              </div>
+
+              {/* Item 3 */}
+              <div className="p-4 bg-paper border border-slate-light rounded-[10px] flex items-center justify-between">
+                <div>
+                  <h4 className="font-sans text-sm font-bold text-ink">
+                    Anjuna Beach Shack Sunset Dinner
+                  </h4>
+                  <span className="font-mono text-xs text-slate">
+                    Anjuna • 19:30
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  Confirmed
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="secondary"
+                onClick={() => navigate('/solo-matches')}
+                className="flex-1 py-2.5"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={() => navigate(`/trips/${trpId}`)}
+                className="flex-1 py-2.5"
+              >
+                Enter Trip Workspace &rarr;
+              </Button>
             </div>
           </div>
         </div>
