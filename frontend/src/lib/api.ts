@@ -10,8 +10,9 @@ export async function apiFetch<T = any>(
   options: RequestInit = {},
   getToken?: () => Promise<string | null>
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {}
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
   }
   if (getToken) {
     const token = await getToken()
@@ -204,92 +205,31 @@ export async function proposeChatMessage(
   }, getToken)
 }
 
-// POST join request
-export async function postJoinRequest(
-  trpId: string,
-  message: string = '',
-  getToken: () => Promise<string | null>
-): Promise<{ status: string; reqId?: string }> {
-  return apiFetch<{ status: string; reqId?: string }>(`/api/trips/${trpId}/join-request`, {
+// --- Face & Memories Endpoints ---
+
+export async function getMemoriesBoards(trpId: string, getToken?: () => Promise<string | null>) {
+  return apiFetch<any>(`/api/memories/${trpId}`, {}, getToken)
+}
+
+export async function getTripPhotos(trpId: string, usrId?: string, getToken?: () => Promise<string | null>) {
+  const query = usrId ? `?usrId=${encodeURIComponent(usrId)}` : ''
+  return apiFetch<any[]>(`/api/photos/${trpId}${query}`, {}, getToken)
+}
+
+export async function getFaceStatus(usrId: string, getToken?: () => Promise<string | null>) {
+  return apiFetch<{ registered: boolean; usrId?: string; fcpId?: string; modelVersion?: string }>(`/api/face/status/${usrId}`, {}, getToken)
+}
+
+export async function uploadTripPhoto(formData: FormData, getToken?: () => Promise<string | null>) {
+  return apiFetch<any>('/api/photos', {
     method: 'POST',
-    body: JSON.stringify({ message }),
+    body: formData,
   }, getToken)
 }
 
-// GET my join status
-export async function getMyJoinStatus(
-  trpId: string,
-  getToken: () => Promise<string | null>
-): Promise<{ status: 'member' | 'pending' | 'rejected' | 'none'; role?: string }> {
-  return apiFetch<{ status: 'member' | 'pending' | 'rejected' | 'none'; role?: string }>(
-    `/api/trips/${trpId}/my-join-status`,
-    {},
-    getToken
-  )
-}
-
-// GET pending join requests (for owner)
-export async function getJoinRequests(
-  trpId: string,
-  getToken: () => Promise<string | null>
-): Promise<Array<{ requestId: string; userId: string; displayName?: string; message?: string; status: string; createdAt?: string }>> {
-  return apiFetch(`/api/trips/${trpId}/join-requests`, {}, getToken)
-}
-
-// POST approve join request
-export async function approveJoinRequest(
-  trpId: string,
-  reqId: string,
-  getToken: () => Promise<string | null>
-): Promise<void> {
-  return apiFetch(`/api/trips/${trpId}/join-requests/${reqId}/approve`, {
+export async function registerFace(formData: FormData, getToken?: () => Promise<string | null>) {
+  return apiFetch<any>('/api/face/register', {
     method: 'POST',
+    body: formData,
   }, getToken)
 }
-
-// POST reject join request
-export async function rejectJoinRequest(
-  trpId: string,
-  reqId: string,
-  getToken: () => Promise<string | null>
-): Promise<void> {
-  return apiFetch(`/api/trips/${trpId}/join-requests/${reqId}/reject`, {
-    method: 'POST',
-  }, getToken)
-}
-
-// POST save itinerary (Phase 2)
-export async function saveItinerary(
-  trpId: string,
-  items: any[],
-  expectedVersion: number = 1,
-  getToken: () => Promise<string | null>
-): Promise<any> {
-  return apiFetch(`/api/trips/${trpId}/itinerary`, {
-    method: 'POST',
-    body: JSON.stringify({ items, expectedVersion }),
-  }, getToken)
-}
-
-// POST auth preferences
-export async function updateAuthPreferences(
-  data: { age: number; languages: string[]; interests: string[]; pace: string },
-  getToken: () => Promise<string | null>
-): Promise<{ success: boolean; ageGroup?: string }> {
-  return apiFetch('/api/auth/preferences', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }, getToken)
-}
-
-// PATCH auth profile
-export async function updateProfile(
-  data: { displayName?: string; travelStyle?: string },
-  getToken: () => Promise<string | null>
-): Promise<any> {
-  return apiFetch('/api/auth/profile', {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  }, getToken)
-}
-

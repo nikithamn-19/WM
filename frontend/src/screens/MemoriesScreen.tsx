@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
@@ -6,8 +6,8 @@ import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { FaceRegistration } from '../components/face/FaceRegistration'
 import { useTripContext } from '../context/TripContext'
-import { Sparkles, MapPin, Utensils, Users, Folder } from 'lucide-react'
-
+import { useAuthContext } from '../context/AuthContext'
+import { getMemoriesBoards, getFaceStatus, uploadTripPhoto, getTripPhotos } from '../lib/api'
 
 export interface MemoryPhotoItem {
   id: string
@@ -15,11 +15,18 @@ export interface MemoryPhotoItem {
   day: string
   title: string
   url: string
+  taggedUsers?: Array<{
+    usrId: string
+    displayName: string
+    confidence?: number
+  }>
+  uploadedBy?: string
 }
 
 export const MemoriesScreen: React.FC = () => {
   const { trpId = 'trp_goa_2026' } = useParams()
   const { addToast } = useTripContext()
+  const { user, getToken } = useAuthContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const INITIAL_FOLDERS = [
@@ -95,6 +102,50 @@ export const MemoriesScreen: React.FC = () => {
     return INITIAL_PHOTOS
   })
 
+  // Fetch real trip memories from backend on mount and when trpId changes
+  const fetchMemories = useCallback(async () => {
+    try {
+      const data = await getMemoriesBoards(trpId, getToken)
+      if (data && data.boards) {
+        const backendPhotos: MemoryPhotoItem[] = (data.boards.all || []).map((p: any) => ({
+          id: p.phoId || p.photo_id,
+          folder: p.folder || 'All',
+          day: 'Day 1',
+          title: p.title || 'Trip Memory',
+          url: p.photoUrl && p.photoUrl.startsWith('/') ? `http://localhost:8000${p.photoUrl}` : p.photoUrl,
+          taggedUsers: p.taggedUsers || [],
+          uploadedBy: p.uploaderName || p.uploaderId,
+        }))
+        if (backendPhotos.length > 0) {
+          setPhotos(backendPhotos)
+        }
+        const dynamicFolders = Object.keys(data.boards.folders || {})
+          .filter((f) => !f.startsWith('folder:'))
+        if (dynamicFolders.length > 0) {
+          setFolders((prev) => Array.from(new Set(['All', ...prev, ...dynamicFolders])))
+        }
+      }
+    } catch (e) {
+      console.log('Using local cached memories', e)
+    }
+  }, [trpId, getToken])
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const effectiveUid = user?.id || 'usr_panchami'
+      try {
+        const res = await getFaceStatus(effectiveUid, getToken)
+        if (res && res.registered) {
+          setIsFaceRegistered(true)
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+    checkStatus()
+    fetchMemories()
+  }, [trpId, user?.id, fetchMemories, getToken])
+
   // Save folders & photos to localStorage whenever they change
   React.useEffect(() => {
     try {
@@ -147,28 +198,47 @@ export const MemoriesScreen: React.FC = () => {
     const filesArray = Array.from(e.target.files)
 
     const targetFolder = selectedFolder === 'All' ? 'Arrival & Resort' : selectedFolder
-    const targetDay = selectedDay === 'All' ? 'Day 1' : selectedDay
+    const effectiveUid = user?.id || 'usr_panchami'
 
-    const newItemsPromises = filesArray.map((file, idx) => {
-      return new Promise<MemoryPhotoItem>((resolve) => {
+    addToast(`Uploading ${filesArray.length} photo(s) to DeepFace recognition engine...`, 'info')
+
+    for (const file of filesArray) {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('trpId', trpId)
+      formData.append('uploaderId', effectiveUid)
+      formData.append('folder', targetFolder)
+      formData.append('title', file.name.replace(/\.[^/.]+$/, ''))
+
+      try {
+        const result = await uploadTripPhoto(formData, getToken)
+        const recognized = (result.taggedUsers || []).map((u: any) => u.displayName).join(', ')
+        if (recognized) {
+          addToast(`DeepFace matched traveler: ${recognized}!`, 'success')
+        } else {
+          addToast(`Uploaded photo "${file.name}" to folder "${targetFolder}"!`, 'success')
+        }
+      } catch (err: any) {
+        console.error('Upload failed, saving locally', err)
         const reader = new FileReader()
         reader.onload = (event) => {
           const dataUrl = event.target?.result as string
-          resolve({
-            id: `m_upload_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 5)}`,
-            folder: targetFolder,
-            day: targetDay,
-            title: file.name.replace(/\.[^/.]+$/, ''),
-            url: dataUrl || URL.createObjectURL(file),
-          })
+          setPhotos((prev) => [
+            {
+              id: `m_upload_${Date.now()}`,
+              folder: targetFolder,
+              day: 'Day 1',
+              title: file.name.replace(/\.[^/.]+$/, ''),
+              url: dataUrl,
+            },
+            ...prev,
+          ])
         }
         reader.readAsDataURL(file)
-      })
-    })
+      }
+    }
 
-    const newPhotoItems = await Promise.all(newItemsPromises)
-    setPhotos((prev) => [...newPhotoItems, ...prev])
-    addToast(`Attached & saved ${filesArray.length} photo(s) in folder "${targetFolder}"!`, 'success')
+    await fetchMemories()
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -190,6 +260,11 @@ export const MemoriesScreen: React.FC = () => {
   const filteredPhotos = photos.filter((p) => {
     const matchesDay = selectedDay === 'All' || p.day === selectedDay
     const matchesFolder = selectedFolder === 'All' || p.folder === selectedFolder
+    if (activeTab === 'my') {
+      const effectiveUid = user?.id || 'usr_panchami'
+      const isTagged = p.taggedUsers && p.taggedUsers.some((u) => u.usrId === effectiveUid)
+      return matchesDay && matchesFolder && (isTagged || !p.taggedUsers)
+    }
     return matchesDay && matchesFolder
   })
 
@@ -212,21 +287,20 @@ export const MemoriesScreen: React.FC = () => {
           <div className="bg-card border border-slate-light rounded-[12px] p-5 shadow-xs flex flex-col justify-between gap-4">
             <div>
               <h3 className="font-serif font-bold text-lg text-ink flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500 inline" />
-                <span>Memory Highlights</span>
+                <span>✨ Memory Highlights</span>
               </h3>
 
               <div className="flex flex-col gap-2 font-sans text-xs text-slate mt-3">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-route shrink-0" />
+                  <span>📍</span>
                   <span>Beach Day - Most photographed</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Utensils className="w-3.5 h-3.5 text-route shrink-0" />
+                  <span>🍽️</span>
                   <span>Food Memories - Beach shack dinner</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5 text-route shrink-0" />
+                  <span>👥</span>
                   <span>Group Moments - {photos.length} photos</span>
                 </div>
               </div>
@@ -236,10 +310,9 @@ export const MemoriesScreen: React.FC = () => {
               variant="secondary"
               onClick={handleGenerateStory}
               disabled={isGeneratingStory}
-              className="w-full py-2 text-xs flex items-center justify-center gap-1.5"
+              className="w-full py-2 text-xs"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              {isGeneratingStory ? 'Generating...' : 'Generate Trip Story'}
+              {isGeneratingStory ? 'Generating...' : 'Generate Trip Story ✨'}
             </Button>
           </div>
 
@@ -354,7 +427,7 @@ export const MemoriesScreen: React.FC = () => {
                 >
                   {folders.map((folder) => (
                     <option key={folder} value={folder}>
-                      {folder === 'All' ? 'All Folders' : folder}
+                      📁 {folder === 'All' ? 'All Folders' : folder}
                     </option>
                   ))}
                 </select>
@@ -374,7 +447,7 @@ export const MemoriesScreen: React.FC = () => {
             /* Empty State for Newly Created or Empty Folders */
             <div className="p-10 border-2 border-dashed border-slate-light rounded-[16px] text-center flex flex-col items-center justify-center gap-4 bg-paper/30 my-4">
               <div className="w-12 h-12 rounded-full bg-paper border border-slate-light text-slate flex items-center justify-center font-mono text-xl">
-                <Folder className="w-6 h-6 text-slate" />
+                📁
               </div>
               <div>
                 <h3 className="font-serif text-lg font-bold text-ink">
@@ -434,7 +507,17 @@ export const MemoriesScreen: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end text-card text-xs font-sans">
+                    {/* Tagged users overlay badge */}
+                    {photo.taggedUsers && photo.taggedUsers.length > 0 && (
+                      <div className="absolute bottom-2 left-2 right-2 bg-ink/80 backdrop-blur-xs text-card px-2 py-1 rounded-[6px] text-[10px] font-mono flex items-center gap-1.5 truncate z-10 pointer-events-none">
+                        <span>👤</span>
+                        <span className="truncate">
+                          {photo.taggedUsers.map((u) => `${u.displayName}${u.confidence ? ` (${Math.round(u.confidence * 100)}%)` : ''}`).join(', ')}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end text-card text-xs font-sans pb-8">
                       <span className="font-bold">{photo.title}</span>
                       <span className="font-mono text-[10px] text-card/80">{photo.day}</span>
                     </div>

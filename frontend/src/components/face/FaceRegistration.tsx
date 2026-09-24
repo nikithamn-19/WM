@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { FaceCapture } from './FaceCapture'
 import { Button } from '../ui/Button'
-import { apiFetch } from '../../lib/api'
+import { registerFace } from '../../lib/api'
 import { useAuthContext } from '../../context/AuthContext'
 
 export interface FaceRegistrationProps {
@@ -13,7 +13,7 @@ export const FaceRegistration: React.FC<FaceRegistrationProps> = ({
   onComplete,
   onSkip,
 }) => {
-  const { getToken } = useAuthContext()
+  const { getToken, user } = useAuthContext()
 
   const [straightPhoto, setStraightPhoto] = useState<File | null>(null)
   const [leftPhoto, setLeftPhoto] = useState<File | null>(null)
@@ -34,16 +34,13 @@ export const FaceRegistration: React.FC<FaceRegistrationProps> = ({
     formData.append('straight', straightPhoto)
     formData.append('left', leftPhoto)
     formData.append('right', rightPhoto)
+    const effectiveUserId = user?.id || 'usr_panchami'
+    const effectiveName = user?.fullName || 'Panchami'
+    formData.append('usrId', effectiveUserId)
+    formData.append('displayName', effectiveName)
 
     try {
-      await apiFetch('/api/face/register', {
-        method: 'POST',
-        body: formData,
-      }, getToken).catch(() => {
-        // Fallback demo handling for phase 3 frontend testing
-        return { status: 'SUCCESS' }
-      })
-
+      await registerFace(formData, getToken)
       onComplete(true)
     } catch (err: any) {
       const message =
