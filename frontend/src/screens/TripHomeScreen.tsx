@@ -26,7 +26,32 @@ export const TripHomeScreen: React.FC = () => {
 
   // Trip Code & Copy State
   const [copiedTripCode, setCopiedTripCode] = useState(false)
-  const tripCode = trpId === 'trp_goa_2026' ? 'GOA-2026' : trpId.toUpperCase().replace('TRP_', '')
+  const tripCode = trpId
+
+  // Lookup trip information if created/joined
+  const [tripInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wm_joined_trips')
+      if (saved) {
+        const list = JSON.parse(saved)
+        const found = list.find((t: any) => t.trpId === trpId)
+        if (found) {
+          return {
+            title: found.title,
+            dates: found.startDate ? `${found.startDate} to ${found.endDate || found.startDate}` : 'June 12–15',
+            membersCount: found.members?.length || found.partySize || 1,
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+    return {
+      title: trpId === 'trp_goa_2026' ? 'Goa Getaway' : trpId.replace(/^trp_/, '').replace(/[_-]/g, ' '),
+      dates: 'June 12–15',
+      membersCount: 6,
+    }
+  })
 
   const handleCopyTripCode = async () => {
     try {
@@ -41,11 +66,11 @@ export const TripHomeScreen: React.FC = () => {
         document.body.removeChild(textarea)
       }
       setCopiedTripCode(true)
-      addToast(`Trip code "${tripCode}" copied to clipboard!`, 'success')
+      addToast(`Team access code "${tripCode}" copied to clipboard!`, 'success')
       setTimeout(() => setCopiedTripCode(false), 2000)
     } catch (err) {
       console.error('Failed to copy trip code', err)
-      addToast('Failed to copy trip code', 'conflict')
+      addToast('Failed to copy team access code', 'conflict')
     }
   }
 
@@ -242,63 +267,82 @@ export const TripHomeScreen: React.FC = () => {
   }
 
   return (
-    <PageWrapper trpId={trpId} tripTitle="Goa Getaway">
+    <PageWrapper trpId={trpId} tripTitle={tripInfo.title}>
       <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-20">
-        {/* 1. Governance & Role Sub-Banner (Stats removed as requested) */}
-        <div className="bg-card border border-slate-light rounded-xl px-5 py-3 flex flex-wrap items-center justify-between shadow-xs gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-slate font-medium">Governance Mode:</span>
-            <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-0.5 rounded-full text-xs font-mono font-medium">
-              Mode A (Admin-Led: Owner Decides)
-            </span>
+        {/* 1. Governance & Role Sub-Banner with Team Access Code Bar (Matching Image) */}
+        <div className="bg-card border border-slate-light rounded-xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-xs">
+          {/* Top Row: Governance Mode & Role */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs text-slate font-medium">Governance Mode:</span>
+              <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-0.5 rounded-full text-xs font-mono font-medium">
+                Mode A (Admin-Led: Owner Decides)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-xs text-slate font-medium">
+                Role: <strong className="text-ink font-semibold">Owner (Admin)</strong>
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-xs text-slate font-medium">
-              Role: <strong className="text-ink font-semibold">Owner (Admin)</strong>
-            </span>
-          </div>
-        </div>
+          {/* Inner Full-Width Bar: Team Access Code Bar */}
+          <div className="bg-paper border border-slate-light rounded-[10px] px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              <span className="font-sans text-xs sm:text-sm font-medium text-slate">
+                Team Access Code:
+              </span>
+              <span className="font-mono text-xs sm:text-sm font-bold text-ink tracking-wide">
+                {trpId}
+              </span>
+            </div>
 
-        {/* 2. Trip Title & Dates Header (Centered, Matches Image 2 & 3) */}
-        <div className="relative flex flex-col items-center justify-center text-center gap-1 pt-2">
-          {/* Top-Right Corner Copy Trip Code Button (Above Create Activity, beside Goa Getaway heading) */}
-          <div className="sm:absolute sm:right-0 sm:top-2 flex items-center justify-end mb-2 sm:mb-0">
             <button
               type="button"
               onClick={handleCopyTripCode}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-slate-light bg-card hover:bg-paper text-slate hover:text-ink transition-all shadow-2xs group cursor-pointer text-xs"
-              title="Click to copy trip code"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-slate-light bg-card hover:bg-paper text-slate hover:text-ink font-mono text-xs font-semibold shadow-2xs transition-all cursor-pointer"
             >
-              <span className="text-slate font-sans text-xs">Trip Code:</span>
-              <span className="font-bold text-ink bg-route/10 text-route px-2 py-0.5 rounded font-mono text-xs border border-route/20">
-                {tripCode}
-              </span>
-              <span className="flex items-center gap-1.5 text-[11px] text-route font-sans font-semibold group-hover:underline ml-0.5">
-                {copiedTripCode ? (
-                  <>
-                    <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="text-emerald-700">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-3.5 h-3.5 text-slate group-hover:text-route transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <span>Copy Trip Code</span>
-                  </>
-                )}
-              </span>
+              {copiedTripCode ? (
+                <>
+                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-emerald-700 font-semibold">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5 text-slate hover:text-route transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span>Copy Code</span>
+                </>
+              )}
             </button>
           </div>
+        </div>
 
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink tracking-tight">
-            Goa Getaway
-          </h1>
+        {/* 2. Trip Title & Dates Header (Centered with Edit Icon) */}
+        <div className="flex flex-col items-center justify-center text-center gap-1 pt-2">
+          <div className="flex items-center gap-2">
+            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink tracking-tight">
+              {tripInfo.title}
+            </h1>
+            <button
+              type="button"
+              className="text-slate hover:text-ink transition-colors cursor-pointer"
+              title="Edit Trip Title"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          </div>
           <p className="font-mono text-xs text-slate">
-            June 12–15 · 6 members
+            {tripInfo.dates} · {tripInfo.membersCount} members
           </p>
 
           {/* 3. Day Selector Pills (Centered Horizontal Tabs) */}
