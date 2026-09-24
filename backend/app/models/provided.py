@@ -53,6 +53,7 @@ class Trip(Base):
     is_group_trip = Column(Boolean, default=True)
     status = Column(String(50), default='ACTIVE')
     mode = Column(String(20), default='Mode NA')
+    visibility = Column(String(20), default='public') # 'public' | 'private'
     home_currency = Column(String(10), default='USD')
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
