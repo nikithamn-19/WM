@@ -8,7 +8,7 @@ export interface TimelineSlotItem {
   itmId: string
   time: string
   title: string
-  status: 'CONFIRMED' | 'OPEN FOR DECISION' | 'RESOLVED FROM POLL' | 'UNASSIGNED'
+  status: 'CONFIRMED' | 'ONGOING' | 'PROPOSED' | 'UNASSIGNED'
   description: string
   cost?: string
   currency?: string
@@ -33,7 +33,7 @@ export const TripHomeScreen: React.FC = () => {
   const [showStats, setShowStats] = useState(false)
 
   // Day 1 Items (Matches Image 2 & 3 + Image 1 debate functionalities)
-  const [day1Items, setDay1Items] = useState<TimelineSlotItem[]>([
+  const [day1Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_b94582f9',
       time: '09:00',
@@ -50,8 +50,8 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_02',
       time: '12:00',
       title: 'Afternoon Activity',
-      status: 'OPEN FOR DECISION',
-      description: 'The group is currently reviewing activity options for this time slot.',
+      status: 'ONGOING',
+      description: 'Group polls are actively underway between Anjuna Scuba diving and Chapora boat cruise.',
       cost: '200.00',
       currency: '₹',
       type: 'Poi / Sightseeing',
@@ -61,7 +61,7 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_03',
       time: '15:00',
       title: 'Candolim Beach + Fort Aguada',
-      status: 'RESOLVED FROM POLL',
+      status: 'CONFIRMED',
       description: 'Relax at Candolim before visiting Fort Aguada in the afternoon.',
       cost: '200.00',
       currency: '₹',
@@ -69,8 +69,19 @@ export const TripHomeScreen: React.FC = () => {
       duration: '180m',
     },
     {
+      itmId: 'itm_04_prop',
+      time: '17:30',
+      title: 'Backwater Sunset Shack & Dinner',
+      status: 'PROPOSED',
+      description: 'Fresh seafood dinner proposal submitted by group member; awaiting poll opening.',
+      cost: '500.00',
+      currency: '₹',
+      type: 'Dining / Leisure',
+      duration: '90m',
+    },
+    {
       itmId: 'itm_empty_1',
-      time: '19:00',
+      time: '20:00',
       title: 'No activity planned yet',
       status: 'UNASSIGNED',
       description: 'No activity planned yet for this slot.',
@@ -78,7 +89,7 @@ export const TripHomeScreen: React.FC = () => {
   ])
 
   // Day 2 Items
-  const [day2Items, setDay2Items] = useState<TimelineSlotItem[]>([
+  const [day2Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_04',
       time: '09:30',
@@ -96,8 +107,8 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_05',
       time: '14:00',
       title: 'Kayaking in Sal River Backwaters',
-      status: 'OPEN FOR DECISION',
-      description: 'Explore scenic mangrove channels and coastal bird sanctuaries with local guide.',
+      status: 'ONGOING',
+      description: 'Polls are ongoing for group kayaking vs private motorboat cruise.',
       cost: '1200.00',
       currency: '₹',
       type: 'Activity / Adventure',
@@ -107,8 +118,8 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_06',
       time: '18:30',
       title: 'Sunset Cruise & Beach Shack Dinner',
-      status: 'RESOLVED FROM POLL',
-      description: 'Relaxing catamaran cruise along North Goa coastline followed by seafood dinner.',
+      status: 'PROPOSED',
+      description: 'Catamaran cruise proposal under initial review.',
       cost: '600.00',
       currency: '₹',
       type: 'Dining & Leisure',
@@ -124,7 +135,7 @@ export const TripHomeScreen: React.FC = () => {
   ])
 
   // Day 3 Items
-  const [day3Items, setDay3Items] = useState<TimelineSlotItem[]>([
+  const [day3Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_07',
       time: '10:00',
@@ -141,8 +152,8 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_08',
       time: '15:30',
       title: 'Anjuna Flea Market & Local Crafts',
-      status: 'OPEN FOR DECISION',
-      description: 'Vibrant seaside market for handcrafted souvenirs, live music, and street food.',
+      status: 'ONGOING',
+      description: 'Polls are ongoing for afternoon market trip vs beach relaxation.',
       cost: '300.00',
       currency: '₹',
       type: 'Shopping & Market',
@@ -152,8 +163,8 @@ export const TripHomeScreen: React.FC = () => {
       itmId: 'itm_09',
       time: '19:30',
       title: 'Farewell Dinner at Thalassa Waterfront',
-      status: 'CONFIRMED',
-      description: 'Celebratory Greek dinner overlooking Ozran Beach cliffside.',
+      status: 'PROPOSED',
+      description: 'Cliffside Greek dinner proposal pending group review.',
       cost: '1500.00',
       currency: '₹',
       type: 'Dining',
@@ -164,18 +175,6 @@ export const TripHomeScreen: React.FC = () => {
   // Get active items for current day
   const currentItems = activeDay === 1 ? day1Items : activeDay === 2 ? day2Items : day3Items
 
-  // Confirm slot handler
-  const handleConfirmItem = (itmId: string) => {
-    const updater = (prev: TimelineSlotItem[]) =>
-      prev.map((it) => (it.itmId === itmId ? { ...it, status: 'CONFIRMED' as const } : it))
-
-    if (activeDay === 1) setDay1Items(updater)
-    else if (activeDay === 2) setDay2Items(updater)
-    else setDay3Items(updater)
-
-    addToast('Activity confirmed and locked into itinerary!', 'success')
-  }
-
   // Helper for status badge styling
   const renderStatusBadge = (status: TimelineSlotItem['status']) => {
     switch (status) {
@@ -185,16 +184,16 @@ export const TripHomeScreen: React.FC = () => {
             CONFIRMED
           </span>
         )
-      case 'OPEN FOR DECISION':
+      case 'ONGOING':
         return (
-          <span className="bg-blue-100 text-blue-900 border border-blue-300 font-mono text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full shrink-0">
-            OPEN FOR DECISION
+          <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full shrink-0">
+            ONGOING
           </span>
         )
-      case 'RESOLVED FROM POLL':
+      case 'PROPOSED':
         return (
           <span className="bg-purple-100 text-purple-900 border border-purple-300 font-mono text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full shrink-0">
-            RESOLVED FROM POLL
+            PROPOSED
           </span>
         )
       default:
@@ -362,42 +361,29 @@ export const TripHomeScreen: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Card Actions (Preserving Debate & Confirm Functionalities) */}
-                  <div className="flex items-center justify-between pt-1">
+                  {/* Card Actions (View Debate option for all activities listed) */}
+                  <div className="flex items-center justify-between w-full pt-1">
                     {isUnassigned ? (
-                      /* Empty slot action */
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveSlotName(`Day ${activeDay} - ${slot.time} Slot`)
-                          setIsProposeOpen(true)
-                        }}
-                        className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
-                      >
-                        <span>+ Explore options in Propose &amp; Resolve</span>
-                      </button>
-                    ) : slot.status === 'OPEN FOR DECISION' ? (
-                      /* Open for decision: Go to Propose & Resolve button + Confirm option */
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <Link
-                          to={`/trips/${trpId}/slots/${slot.itmId}`}
-                          className="bg-route text-card font-sans font-semibold text-xs px-4 py-2 rounded-[8px] hover:opacity-95 shadow-xs transition-all flex items-center gap-1.5"
-                        >
-                          <span>Go to Propose &amp; Resolve</span>
-                          <span>&rarr;</span>
-                        </Link>
-
+                      <>
                         <button
                           type="button"
-                          onClick={() => handleConfirmItem(slot.itmId)}
-                          className="border border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-semibold px-3 py-1.5 rounded-[8px] transition-colors flex items-center gap-1"
+                          onClick={() => {
+                            setActiveSlotName(`Day ${activeDay} - ${slot.time} Slot`)
+                            setIsProposeOpen(true)
+                          }}
+                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
                         >
-                          <span>✓</span>
-                          <span>Confirm</span>
+                          <span>+ Propose Activity</span>
                         </button>
-                      </div>
+                        <Link
+                          to={`/trips/${trpId}/slots/itm_b94582f9`}
+                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
+                        >
+                          <span>View Debate</span>
+                          <span>&rarr;</span>
+                        </Link>
+                      </>
                     ) : (
-                      /* Confirmed / Resolved: View Debate link */
                       <div className="flex items-center justify-end w-full">
                         <Link
                           to={`/trips/${trpId}/slots/${slot.itmId}`}
