@@ -47,8 +47,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     : {
         usrId: 'usr_demo_owner',
-        displayName: 'Alex Chen',
-        email: 'alex@wandermatch.app',
+        displayName: 'Nikitha',
+        email: 'nikitha@wandermatch.internal',
         homeCityId: 'cty_bali',
         locale: 'en',
         budgetBand: 'mid',

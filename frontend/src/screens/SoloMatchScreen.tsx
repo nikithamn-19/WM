@@ -164,6 +164,7 @@ export const SoloMatchScreen: React.FC = () => {
   // Filter States
   const [targetCity, setTargetCity] = useState('Goa')
   const [maxBudget, setMaxBudget] = useState('1000')
+  const [tripDate, setTripDate] = useState('')
 
   // Contact Guide Modal State
   const [selectedGuide, setSelectedGuide] = useState<TourGuide | null>(null)
@@ -202,7 +203,7 @@ export const SoloMatchScreen: React.FC = () => {
     return matchesCity && matchesBudget
   })
 
-  // Filter Group Trips
+  // Filter Group Trips based on target city and trip date
   const filteredTrips = DISCOVER_TRIPS.filter((trip) => {
     const matchesCity =
       !targetCity.trim() ||
@@ -210,7 +211,11 @@ export const SoloMatchScreen: React.FC = () => {
       trip.location.toLowerCase().includes(targetCity.trim().toLowerCase()) ||
       trip.title.toLowerCase().includes(targetCity.trim().toLowerCase())
 
-    return matchesCity
+    const matchesDate =
+      !tripDate.trim() ||
+      trip.dates.toLowerCase().includes(tripDate.trim().toLowerCase())
+
+    return matchesCity && matchesDate
   })
 
   return (
@@ -282,18 +287,33 @@ export const SoloMatchScreen: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="text-xs font-mono text-slate mb-1 block">
-              {activeTab === 'guides' ? 'Max Daily Budget (INR/USD)' : 'Max Trip Budget (INR)'}
-            </label>
-            <input
-              type="text"
-              value={maxBudget}
-              onChange={(e) => setMaxBudget(e.target.value)}
-              placeholder={activeTab === 'guides' ? '1000' : '15000'}
-              className="w-full bg-paper border border-slate-light rounded-[8px] px-3.5 py-2 text-sm text-ink focus:outline-none focus:border-route"
-            />
-          </div>
+          {activeTab === 'guides' ? (
+            <div>
+              <label className="text-xs font-mono text-slate mb-1 block">
+                Max Daily Budget (INR/USD)
+              </label>
+              <input
+                type="text"
+                value={maxBudget}
+                onChange={(e) => setMaxBudget(e.target.value)}
+                placeholder="1000"
+                className="w-full bg-paper border border-slate-light rounded-[8px] px-3.5 py-2 text-sm text-ink focus:outline-none focus:border-route"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs font-mono text-slate mb-1 block">
+                Trip Date
+              </label>
+              <input
+                type="text"
+                value={tripDate}
+                onChange={(e) => setTripDate(e.target.value)}
+                placeholder="e.g. 14-22 OCT, Oct 2026, or any date"
+                className="w-full bg-paper border border-slate-light rounded-[8px] px-3.5 py-2 text-sm text-ink focus:outline-none focus:border-route"
+              />
+            </div>
+          )}
 
           <div>
             <button
