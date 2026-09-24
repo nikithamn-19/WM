@@ -80,10 +80,6 @@ export const MemoriesScreen: React.FC = () => {
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([])
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
-  const [isGeneratingStory, setIsGeneratingStory] = useState(false)
-  const [tripStory, setTripStory] = useState(
-    'The trip kicked off with lazy mornings at Artjuna, sipping fresh coffee under the banyan trees. As the days blurred into sun-drenched afternoons on Candolim, the evenings were marked by long, reflective sunset walks along the shoreline capturing the vibrant hues of the Arabian Sea.'
-  )
 
   // Persistent Photos State
   const [photos, setPhotos] = useState<MemoryPhotoItem[]>(() => {
@@ -143,6 +139,7 @@ export const MemoriesScreen: React.FC = () => {
     addToast(`Deleted ${count} photo(s) successfully!`, 'success')
   }
 
+  // Create folder
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newFolderName.trim()) return
@@ -157,6 +154,24 @@ export const MemoriesScreen: React.FC = () => {
     setNewFolderName('')
     setIsNewFolderOpen(false)
     addToast(`Folder "${name}" created and saved!`, 'success')
+  }
+
+  // Delete folder
+  const handleDeleteFolder = (folderName: string) => {
+    if (folderName === 'All') return
+    const updatedFolders = folders.filter((f) => f !== folderName)
+    setFolders(updatedFolders)
+
+    // Reassign photos in the deleted folder to 'All'
+    setPhotos((prev) =>
+      prev.map((p) => (p.folder === folderName ? { ...p, folder: 'All' } : p))
+    )
+
+    if (selectedFolder === folderName) {
+      setSelectedFolder('All')
+    }
+
+    addToast(`Folder "${folderName}" deleted successfully!`, 'success')
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,17 +209,6 @@ export const MemoriesScreen: React.FC = () => {
     fileInputRef.current?.click()
   }
 
-  const handleGenerateStory = () => {
-    setIsGeneratingStory(true)
-    setTimeout(() => {
-      setTripStory(
-        'From thrilling Dudhsagar jungle jeep treks to peaceful sunset dinners at Anjuna Beach, the crew explored Old Goa’s heritage forts and relished coastal seafood feasts together.'
-      )
-      setIsGeneratingStory(false)
-      addToast('New narrative trip story generated with AI!', 'success')
-    }, 1200)
-  }
-
   const filteredPhotos = photos.filter((p) => {
     const matchesDay = selectedDay === 'All' || p.day === selectedDay
     const matchesFolder = selectedFolder === 'All' || p.folder === selectedFolder
@@ -224,63 +228,8 @@ export const MemoriesScreen: React.FC = () => {
         className="hidden"
       />
 
-      <div className="flex flex-col gap-8 max-w-5xl mx-auto">
-        {/* 1. TOP SECTION: Memory Highlights & Featured Narrative (PDF Page 16 Design) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left Highlights Panel */}
-          <div className="bg-card border border-slate-light rounded-[12px] p-5 shadow-xs flex flex-col justify-between gap-4">
-            <div>
-              <h3 className="font-serif font-bold text-lg text-ink flex items-center gap-2">
-                <span>✨ Memory Highlights</span>
-              </h3>
-
-              <div className="flex flex-col gap-2 font-sans text-xs text-slate mt-3">
-                <div className="flex items-center gap-2">
-                  <span>📍</span>
-                  <span>Beach Day - Most photographed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>🍽️</span>
-                  <span>Food Memories - Beach shack dinner</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>👥</span>
-                  <span>Group Moments - {photos.length} photos</span>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              variant="secondary"
-              onClick={handleGenerateStory}
-              disabled={isGeneratingStory}
-              className="w-full py-2 text-xs cursor-pointer"
-            >
-              {isGeneratingStory ? 'Generating...' : 'Generate Trip Story ✨'}
-            </Button>
-          </div>
-
-          {/* Right Narrative Story Panel */}
-          <div className="md:col-span-2 bg-paper border border-slate-light rounded-[12px] p-6 shadow-xs flex flex-col justify-between gap-4">
-            <div>
-              <span className="font-mono text-[10px] text-slate uppercase font-bold tracking-wider">
-                FEATURED NARRATIVE
-              </span>
-              <h2 className="font-serif text-2xl font-bold text-ink mt-1">
-                Your Goa Story
-              </h2>
-              <p className="font-sans text-xs sm:text-sm text-slate leading-relaxed mt-2">
-                {tripStory}
-              </p>
-            </div>
-
-            <a href="#full-story" className="font-mono text-xs font-bold text-route hover:underline">
-              View Full Story &rarr;
-            </a>
-          </div>
-        </div>
-
-        {/* 2. GALLERY SECTION */}
+      <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-16">
+        {/* GALLERY SECTION */}
         <div className="bg-card border border-slate-light rounded-[12px] p-6 shadow-xs flex flex-col gap-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-light">
             <div>
@@ -353,7 +302,7 @@ export const MemoriesScreen: React.FC = () => {
               </button>
             </div>
 
-            {/* Day & Folder Dropdown Filters */}
+            {/* Day & Folder Dropdown Filters + Folder Delete Option */}
             <div className="flex flex-wrap items-center gap-4 pt-1">
               <div className="flex items-center gap-2">
                 <label className="font-mono text-xs text-slate font-bold">Filter Day:</label>
@@ -370,7 +319,7 @@ export const MemoriesScreen: React.FC = () => {
                 </select>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <label className="font-mono text-xs text-slate font-bold">Filter Folder:</label>
                 <select
                   value={selectedFolder}
@@ -383,6 +332,19 @@ export const MemoriesScreen: React.FC = () => {
                     </option>
                   ))}
                 </select>
+
+                {/* Direct Delete Button for the Selected Folder */}
+                {selectedFolder !== 'All' && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFolder(selectedFolder)}
+                    className="text-xs font-mono font-medium text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded-[8px] px-2.5 py-1.5 flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px] shadow-2xs"
+                    title={`Delete folder "${selectedFolder}"`}
+                  >
+                    <span>🗑</span>
+                    <span>Delete "{selectedFolder}"</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -495,34 +457,68 @@ export const MemoriesScreen: React.FC = () => {
           )}
         </div>
 
-        {/* Modal: New Folder */}
+        {/* Modal: Create & Manage Folders */}
         {isNewFolderOpen && (
           <Modal
             isOpen={isNewFolderOpen}
             onClose={() => setIsNewFolderOpen(false)}
-            title="Create New Photo Folder"
+            title="Create & Manage Photo Folders"
           >
-            <form onSubmit={handleCreateFolder} className="flex flex-col gap-4">
-              <Input
-                label="Folder Name"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="e.g. Sunset Cruise"
-                required
-              />
-              <div className="flex gap-2 justify-end pt-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsNewFolderOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={!newFolderName.trim()}>
-                  Create Folder
-                </Button>
-              </div>
-            </form>
+            <div className="flex flex-col gap-5">
+              <form onSubmit={handleCreateFolder} className="flex flex-col gap-4">
+                <Input
+                  label="New Folder Name"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="e.g. Sunset Cruise"
+                  required
+                />
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setIsNewFolderOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={!newFolderName.trim()}>
+                    Create Folder
+                  </Button>
+                </div>
+              </form>
+
+              {/* List of Existing Custom Folders with Option to Delete */}
+              {folders.filter((f) => f !== 'All').length > 0 && (
+                <div className="pt-3 border-t border-slate-light flex flex-col gap-2">
+                  <span className="font-mono text-xs text-slate font-bold uppercase tracking-wider">
+                    Existing Folders ({folders.filter((f) => f !== 'All').length}):
+                  </span>
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                    {folders
+                      .filter((f) => f !== 'All')
+                      .map((folder) => (
+                        <div
+                          key={folder}
+                          className="flex items-center justify-between p-2.5 rounded-lg bg-paper border border-slate-light/70 text-xs font-sans"
+                        >
+                          <span className="flex items-center gap-2 text-ink font-medium">
+                            <span>📁</span>
+                            <span>{folder}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFolder(folder)}
+                            className="text-rose-600 hover:text-white hover:bg-rose-600 px-2.5 py-1 rounded text-xs font-mono font-medium flex items-center gap-1 border border-rose-300 transition-all cursor-pointer"
+                            title={`Delete folder "${folder}"`}
+                          >
+                            <span>🗑 Delete</span>
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </Modal>
         )}
       </div>
