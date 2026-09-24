@@ -10,9 +10,8 @@ export async function apiFetch<T = any>(
   options: RequestInit = {},
   getToken?: () => Promise<string | null>
 ): Promise<T> {
-  const headers: Record<string, string> = {}
-  if (!(options.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json'
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
   }
   if (getToken) {
     const token = await getToken()
@@ -205,31 +204,150 @@ export async function proposeChatMessage(
   }, getToken)
 }
 
-// --- Face & Memories Endpoints ---
-
-export async function getMemoriesBoards(trpId: string, getToken?: () => Promise<string | null>) {
-  return apiFetch<any>(`/api/memories/${trpId}`, {}, getToken)
-}
-
-export async function getTripPhotos(trpId: string, usrId?: string, getToken?: () => Promise<string | null>) {
-  const query = usrId ? `?usrId=${encodeURIComponent(usrId)}` : ''
-  return apiFetch<any[]>(`/api/photos/${trpId}${query}`, {}, getToken)
-}
-
-export async function getFaceStatus(usrId: string, getToken?: () => Promise<string | null>) {
-  return apiFetch<{ registered: boolean; usrId?: string; fcpId?: string; modelVersion?: string }>(`/api/face/status/${usrId}`, {}, getToken)
-}
-
-export async function uploadTripPhoto(formData: FormData, getToken?: () => Promise<string | null>) {
-  return apiFetch<any>('/api/photos', {
+// POST join request
+export async function postJoinRequest(
+  trpId: string,
+  message: string = '',
+  getToken: () => Promise<string | null>
+): Promise<{ status: string; reqId?: string }> {
+  return apiFetch<{ status: string; reqId?: string }>(`/api/trips/${trpId}/join-request`, {
     method: 'POST',
-    body: formData,
+    body: JSON.stringify({ message }),
   }, getToken)
 }
 
-export async function registerFace(formData: FormData, getToken?: () => Promise<string | null>) {
-  return apiFetch<any>('/api/face/register', {
+// GET my join status
+export async function getMyJoinStatus(
+  trpId: string,
+  getToken: () => Promise<string | null>
+): Promise<{ status: 'member' | 'pending' | 'rejected' | 'none'; role?: string }> {
+  return apiFetch<{ status: 'member' | 'pending' | 'rejected' | 'none'; role?: string }>(
+    `/api/trips/${trpId}/my-join-status`,
+    {},
+    getToken
+  )
+}
+
+// GET pending join requests (for owner)
+export async function getJoinRequests(
+  trpId: string,
+  getToken: () => Promise<string | null>
+): Promise<Array<{ requestId: string; userId: string; displayName?: string; message?: string; status: string; createdAt?: string }>> {
+  return apiFetch(`/api/trips/${trpId}/join-requests`, {}, getToken)
+}
+
+// POST approve join request
+export async function approveJoinRequest(
+  trpId: string,
+  reqId: string,
+  getToken: () => Promise<string | null>
+): Promise<void> {
+  return apiFetch(`/api/trips/${trpId}/join-requests/${reqId}/approve`, {
     method: 'POST',
-    body: formData,
   }, getToken)
 }
+
+// POST reject join request
+export async function rejectJoinRequest(
+  trpId: string,
+  reqId: string,
+  getToken: () => Promise<string | null>
+): Promise<void> {
+  return apiFetch(`/api/trips/${trpId}/join-requests/${reqId}/reject`, {
+    method: 'POST',
+  }, getToken)
+}
+
+// POST save itinerary (Phase 2)
+export async function saveItinerary(
+  trpId: string,
+  items: any[],
+  expectedVersion: number = 1,
+  getToken: () => Promise<string | null>
+): Promise<any> {
+  return apiFetch(`/api/trips/${trpId}/itinerary`, {
+    method: 'POST',
+    body: JSON.stringify({ items, expectedVersion }),
+  }, getToken)
+}
+
+// POST auth preferences
+export async function updateAuthPreferences(
+  data: { age: number; languages: string[]; interests: string[]; pace: string },
+  getToken: () => Promise<string | null>
+): Promise<{ success: boolean; ageGroup?: string }> {
+  return apiFetch('/api/auth/preferences', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }, getToken)
+}
+
+// PATCH auth profile
+export async function updateProfile(
+  data: { displayName?: string; travelStyle?: string; budgetBand?: string; homeCityId?: string },
+  getToken: () => Promise<string | null>
+): Promise<any> {
+  return apiFetch('/api/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }, getToken)
+}
+
+// GET auth profile & preferences (/api/auth/me)
+export async function getMe(getToken: () => Promise<string | null>): Promise<any> {
+  return apiFetch('/api/auth/me', {}, getToken)
+}
+
+// POST generate or regenerate invite code for a trip
+export async function generateInviteCode(
+  trpId: string,
+  getToken: () => Promise<string | null>
+): Promise<{ inviteCode: string; expiresAt?: string }> {
+  return apiFetch<{ inviteCode: string; expiresAt?: string }>(`/api/trips/${trpId}/invite-code`, {
+    method: 'POST',
+  }, getToken)
+}
+
+// POST join trip by code
+export async function joinByCode(
+  code: string,
+  message: string = '',
+  getToken: () => Promise<string | null>
+): Promise<{ status: string; tripId: string; autoApproved?: boolean; requestId?: string }> {
+  return apiFetch<{ status: string; tripId: string; autoApproved?: boolean; requestId?: string }>('/api/trips/join-by-code', {
+    method: 'POST',
+    body: JSON.stringify({ code, message }),
+  }, getToken)
+}
+
+// GET discover public trips preview
+export async function getDiscoverTrips(getToken: () => Promise<string | null>): Promise<Trip[]> {
+  return apiFetch<Trip[]>('/api/trips/discover', {}, getToken)
+}
+
+// POST register user directly to DB
+export async function registerUser(data: {
+  displayName: string
+  email: string
+  password?: string
+  age?: number
+  languages?: string[]
+  interests?: string[]
+  pace?: string
+}): Promise<any> {
+  return apiFetch('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// POST login user directly from DB
+export async function loginUser(data: { email: string; password?: string }): Promise<any> {
+  return apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+
+

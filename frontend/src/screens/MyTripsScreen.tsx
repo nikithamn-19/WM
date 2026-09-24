@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
-import { getTrips, postJoinRequest } from '../lib/api'
+import { getTrips, joinByCode } from '../lib/api'
 import { useAuthContext } from '../context/AuthContext'
 import { useTripContext } from '../context/TripContext'
 import type { Trip } from '../types/trip'
@@ -25,47 +25,14 @@ export const MyTripsScreen: React.FC = () => {
   const [isSubmittingJoin, setIsSubmittingJoin] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const dummyFallbackTrips = [
-    {
-      trpId: 'trp_goa_2026',
-      ownerId: 'usr_owner',
-      title: 'Goa Sunsets & Beach Getaway',
-      destinationCityId: 'Goa',
-      startDate: '10-16 OCT',
-      endDate: '2026-10-16',
-      partySize: 4,
-      mode: 'Mode A',
-      status: 'Planning',
-      coverImage: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80',
-      members: ['Alex', 'Priya', 'Jordan', 'Sam'],
-    },
-    {
-      trpId: 'trp_kerala_2026',
-      ownerId: 'usr_priya',
-      title: 'Kerala Backwaters & Houseboat Retreat',
-      destinationCityId: 'Kochi',
-      startDate: '01-07 NOV',
-      endDate: '2026-11-07',
-      partySize: 5,
-      mode: 'Mode NA',
-      status: 'Confirmed',
-      coverImage: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80',
-      members: ['Priya', 'Dev', 'Maya'],
-    },
-  ]
-
   const fetchUserTrips = () => {
     setIsLoading(true)
     getTrips(getToken)
       .then((data) => {
-        if (data && data.length > 0) {
-          setTrips(data)
-        } else {
-          setTrips(dummyFallbackTrips as any)
-        }
+        setTrips(data || [])
       })
       .catch(() => {
-        setTrips(dummyFallbackTrips as any)
+        setTrips([])
       })
       .finally(() => setIsLoading(false))
   }
@@ -87,27 +54,29 @@ export const MyTripsScreen: React.FC = () => {
     e.preventDefault()
     const cleanCode = joinCode.trim()
     if (!cleanCode) {
-      addToast('Please enter a trip join code or ID', 'conflict')
+      addToast('Please enter a trip join code', 'conflict')
       return
     }
 
     setIsSubmittingJoin(true)
     try {
-      const res = await postJoinRequest(cleanCode, 'Joining via trip code', getToken)
-      if ((res as any).autoApproved || res.status === 'approved') {
+      const res = await joinByCode(cleanCode, 'Joining via trip code', getToken)
+      if (res.status === 'already_member') {
+        addToast('You are already a member of this trip!', 'info')
+        setIsJoinModalOpen(false)
+        navigate(`/trips/${res.tripId}`)
+      } else if (res.autoApproved || res.status === 'joined' || res.status === 'approved') {
         addToast('Trip joined successfully!', 'success')
         setIsJoinModalOpen(false)
-        navigate(`/trips/${cleanCode}`)
+        fetchUserTrips()
+        navigate(`/trips/${res.tripId}`)
       } else {
-        addToast('Request sent to trip admin — waiting for approval', 'info')
+        addToast('Join request sent to trip admin — waiting for approval', 'info')
         setIsJoinModalOpen(false)
-        navigate(`/trips/${cleanCode}/preview`)
+        navigate(`/trips/${res.tripId}/preview`)
       }
     } catch (err: any) {
-      // Fallback demo for quick test
-      addToast(`Joining trip ${cleanCode}...`, 'info')
-      setIsJoinModalOpen(false)
-      navigate(`/trips/${cleanCode}`)
+      addToast(err.message || 'Invalid or expired join code', 'error')
     } finally {
       setIsSubmittingJoin(false)
     }

@@ -26,21 +26,9 @@ export interface ConflictResolutionPanelProps {
   onExtend?: () => void
 }
 
-export const dummyBlendedPlan = {
-  action: 'BLENDED',
-  blendedPlan: {
-    title: 'Dudhsagar Waterfalls & Jungle Jeep Safari Combo',
-    rationale: 'Combines the jungle jeep adventure with spice plantation tour to accommodate both adventurous and relaxed member preferences.',
-    costDelta: '2500.00',
-    currency: 'INR',
-    constraintStatus: 'satisfied' as const,
-  },
-  currentRound: 2,
-}
-
 export const ConflictResolutionPanel: React.FC<ConflictResolutionPanelProps> = ({
   currentRound = 2,
-  blendedPlan = dummyBlendedPlan.blendedPlan,
+  blendedPlan,
   mode = 'Mode A',
   currentUserRole = 'owner',
   itmId,
@@ -53,6 +41,10 @@ export const ConflictResolutionPanel: React.FC<ConflictResolutionPanelProps> = (
   const { addToast } = useTripContext()
 
   const [loadingAction, setLoadingAction] = useState<'accept' | 'branch' | 'extend' | null>(null)
+
+  if (!blendedPlan) {
+    return null
+  }
 
   const isOwner = currentUserRole === 'owner'
   const isModeA = mode === 'Mode A'

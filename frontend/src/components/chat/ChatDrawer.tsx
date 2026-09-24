@@ -28,25 +28,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const dummyFallbackMessages: ChatMessage[] = [
-    {
-      msgId: 'msg_1',
-      trpId,
-      usrId: 'usr_owner',
-      displayName: 'Alex Chen',
-      text: 'Hey group! Should we do sunrise trek at Mount Batur or thermal springs spa?',
-      sentAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      msgId: 'msg_2',
-      trpId,
-      usrId: 'usr_priya',
-      displayName: 'Priya Sharma',
-      text: 'I prefer thermal springs spa after a long flight!',
-      sentAt: new Date(Date.now() - 1800000).toISOString(),
-    },
-  ]
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -57,14 +38,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     setIsLoading(true)
     getChatMessages(trpId, getToken)
       .then((data) => {
-        if (data && data.length > 0) {
-          setMessages(data)
-        } else {
-          setMessages(dummyFallbackMessages)
-        }
+        setMessages(data || [])
       })
       .catch(() => {
-        setMessages(dummyFallbackMessages)
+        setMessages([])
       })
       .finally(() => {
         setIsLoading(false)

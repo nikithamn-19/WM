@@ -3,10 +3,10 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import User, Trip, TripMember, Itinerary, ItineraryItem, SlotConsensus, JoinRequest, TripInviteCode
+from ..models import User, Trip, TripMember, Itinerary, ItineraryItem, SlotConsensus, JoinRequest, TripInviteCode, TripChatMessage, Photo
 from ..schemas.trip import (
     CreateTripPhase1Input, AddItineraryItemsInput, TripUpdateInput, TripResponse,
-    JoinRequestInput, JoinRequestResponse, JoinByCodeInput
+    JoinRequestInput, JoinRequestResponse, JoinByCodeInput, ChatMessageInput, PhotoCreateInput
 )
 from ..services.clerk_auth import get_current_user
 from ..utils import generate_id, parse_time, money, generate_invite_code
@@ -43,6 +43,7 @@ async def create_trip(
         is_group_trip=True,
         status=trip_status,
         mode=body.mode,
+        visibility=getattr(body, "visibility", "public") or "public",
         home_currency="USD",
         notes=body.notes,
     )
@@ -211,6 +212,36 @@ async def get_user_trips(
         })
     return result
 
+@router.get("/api/trips/discover")
+async def get_discover_trips(
+    db: Session = Depends(get_db)
+):
+    """
+    Returns public discoverable trips only (visibility='public' AND status!='draft').
+    Returns limited preview metadata without internal itinerary, vote details, or private fields.
+    """
+    public_trips = db.query(Trip).filter(
+        Trip.visibility == "public",
+        Trip.status != "draft"
+    ).all()
+
+    result = []
+    for t in public_trips:
+        member_count = db.query(TripMember).filter(TripMember.trip_id == t.trip_id).count()
+        result.append({
+            "trpId": t.trip_id,
+            "title": t.title,
+            "destinationCityId": t.destination_city_id,
+            "startDate": str(t.start_date) if t.start_date else None,
+            "endDate": str(t.end_date) if t.end_date else None,
+            "partySize": t.party_size,
+            "memberCount": member_count,
+            "mode": t.mode or "Mode NA",
+            "visibility": t.visibility or "public",
+            "notes": t.notes,
+        })
+    return result
+
 @router.get("/api/trips/{trip_id}")
 async def get_trip(
     trip_id: str,
@@ -223,6 +254,12 @@ async def get_trip(
         raise HTTPException(status_code=404, detail="Trip not found")
     
     members = db.query(TripMember).filter(TripMember.trip_id == trip_id).all()
+    
+    # Access check: if trip is private, user MUST be a member to retrieve full trip details
+    is_member = any(m.user_id == current_user.user_id for m in members)
+    if getattr(trip, "visibility", "public") == "private" and not is_member:
+        raise HTTPException(status_code=403, detail="Private trip access restricted to members only")
+        
     itinerary = db.query(Itinerary).filter(Itinerary.trip_id == trip_id, Itinerary.is_active == True).first()
     
     items_data = []
@@ -536,90 +573,6 @@ async def my_join_status(
     return {"status": "none"}
 
 
-@router.post("/api/trips/{trip_id}/join-request", response_model=JoinRequestResponse)
-async def send_join_request(
-    trip_id: str,
-    body: JoinRequestInput,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Send join request to a trip.
-    Mode NA: Auto-approved immediately + added as editor.
-    Mode A: Created as pending request.
-    """
-    trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    if trip.status == "draft":
-        raise HTTPException(status_code=400, detail="Cannot join a draft trip")
-    
-    # Check not already a member
-    existing_member = db.query(TripMember).filter(
-        TripMember.trip_id == trip_id,
-        TripMember.user_id == current_user.user_id
-    ).first()
-    if existing_member:
-        raise HTTPException(status_code=409, detail="You are already a member of this trip")
-    
-    request_id = generate_id("jrq_")
-    
-    if trip.mode == "Mode NA":
-        # Auto-approve immediately
-        join_req = JoinRequest(
-            request_id=request_id,
-            trip_id=trip_id,
-            user_id=current_user.user_id,
-            status="approved",
-            message=body.message,
-            reviewed_by=None,
-        )
-        db.add(join_req)
-        
-        # Immediately add to trip_members
-        new_member = TripMember(
-            member_id=generate_id("tmb_"),
-            trip_id=trip_id,
-            user_id=current_user.user_id,
-            role="editor",  # All members in Mode NA are editors
-            share_weight=Decimal("1.000"),
-            status="active",
-        )
-        db.add(new_member)
-        db.commit()
-        
-        return JoinRequestResponse(
-            requestId=request_id,
-            tripId=trip_id,
-            userId=current_user.user_id,
-            status="approved",
-            message=body.message,
-            createdAt=str(datetime.utcnow()),
-            autoApproved=True,
-        )
-    
-    else:  # Mode A — needs admin approval
-        join_req = JoinRequest(
-            request_id=request_id,
-            trip_id=trip_id,
-            user_id=current_user.user_id,
-            status="pending",
-            message=body.message,
-            reviewed_by=None,
-        )
-        db.add(join_req)
-        db.commit()
-        
-        return JoinRequestResponse(
-            requestId=request_id,
-            tripId=trip_id,
-            userId=current_user.user_id,
-            status="pending",
-            message=body.message,
-            createdAt=str(datetime.utcnow()),
-            autoApproved=False,
-        )
-
 @router.get("/api/trips/{trip_id}/join-requests")
 async def get_join_requests(
     trip_id: str,
@@ -848,6 +801,7 @@ async def revoke_and_regenerate_invite_code(
     }
 
 @router.post("/api/join-requests/by-code")
+@router.post("/api/trips/join-by-code")
 async def join_trip_by_code(
     body: JoinByCodeInput,
     current_user: User = Depends(get_current_user),
@@ -973,5 +927,142 @@ async def join_trip_by_code(
             createdAt=str(datetime.utcnow()),
             autoApproved=False
         )
+
+# ==================================================
+# TRIP CHAT ENDPOINTS
+# ==================================================
+
+@router.get("/api/trips/{trip_id}/chat")
+async def get_trip_chat_messages(
+    trip_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve chat history for a trip."""
+    trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    messages = db.query(TripChatMessage).filter(
+        TripChatMessage.trip_id == trip_id
+    ).order_by(TripChatMessage.created_at.asc()).all()
+
+    result = []
+    for msg in messages:
+        sender = db.query(User).filter(User.user_id == msg.user_id).first()
+        result.append({
+            "messageId": msg.message_id,
+            "tripId": msg.trip_id,
+            "userId": msg.user_id,
+            "senderName": sender.display_name if sender else "Member",
+            "avatarUrl": sender.avatar_url if sender else None,
+            "content": msg.content,
+            "isProposal": msg.is_proposal or False,
+            "proposalRefId": msg.proposal_ref_id,
+            "createdAt": str(msg.created_at)
+        })
+    return result
+
+@router.post("/api/trips/{trip_id}/chat")
+async def post_trip_chat_message(
+    trip_id: str,
+    body: ChatMessageInput,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Send a chat message to a trip."""
+    trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    msg_id = generate_id("msg_")
+    msg = TripChatMessage(
+        message_id=msg_id,
+        trip_id=trip_id,
+        user_id=current_user.user_id,
+        content=body.content.strip(),
+        is_proposal=body.isProposal,
+        proposal_ref_id=body.proposalRefId,
+    )
+    db.add(msg)
+    db.commit()
+
+    return {
+        "messageId": msg_id,
+        "tripId": trip_id,
+        "userId": current_user.user_id,
+        "senderName": current_user.display_name,
+        "avatarUrl": current_user.avatar_url,
+        "content": msg.content,
+        "isProposal": msg.is_proposal,
+        "proposalRefId": msg.proposal_ref_id,
+        "createdAt": str(msg.created_at)
+    }
+
+# ==================================================
+# TRIP PHOTOS ENDPOINTS
+# ==================================================
+
+@router.get("/api/trips/{trip_id}/photos")
+async def get_trip_photos(
+    trip_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve gallery photos for a trip."""
+    trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    photos = db.query(Photo).filter(
+        Photo.trip_id == trip_id
+    ).order_by(Photo.created_at.desc()).all()
+
+    result = []
+    for p in photos:
+        uploader = db.query(User).filter(User.user_id == p.uploader_id).first()
+        result.append({
+            "photoId": p.photo_id,
+            "tripId": p.trip_id,
+            "uploaderId": p.uploader_id,
+            "uploaderName": uploader.display_name if uploader else "Traveler",
+            "photoUrl": p.photo_url,
+            "processingStatus": p.processing_status or "processed",
+            "createdAt": str(p.created_at)
+        })
+    return result
+
+@router.post("/api/trips/{trip_id}/photos")
+async def add_trip_photo(
+    trip_id: str,
+    body: PhotoCreateInput,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Add a photo to a trip gallery."""
+    trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    photo_id = generate_id("pho_")
+    photo = Photo(
+        photo_id=photo_id,
+        trip_id=trip_id,
+        uploader_id=current_user.user_id,
+        photo_url=body.photoUrl.strip(),
+        processing_status="processed"
+    )
+    db.add(photo)
+    db.commit()
+
+    return {
+        "photoId": photo_id,
+        "tripId": trip_id,
+        "uploaderId": current_user.user_id,
+        "uploaderName": current_user.display_name,
+        "photoUrl": photo.photo_url,
+        "processingStatus": "processed",
+        "createdAt": str(photo.created_at)
+    }
 
 
