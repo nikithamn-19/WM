@@ -2,13 +2,12 @@ import React, { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { useTripContext } from '../context/TripContext'
-import { ProposeActivityModal } from './ProposeActivityModal'
 
 export interface TimelineSlotItem {
   itmId: string
   time: string
   title: string
-  status: 'CONFIRMED' | 'ONGOING' | 'PROPOSED' | 'UNASSIGNED'
+  status: 'CONFIRMED' | 'ONGOING' | 'PROPOSED'
   description: string
   cost?: string
   currency?: string
@@ -24,10 +23,6 @@ export const TripHomeScreen: React.FC = () => {
 
   // Active Day Tab
   const [activeDay, setActiveDay] = useState<number>(1)
-
-  // Modals State
-  const [isProposeOpen, setIsProposeOpen] = useState(false)
-  const [activeSlotName, setActiveSlotName] = useState('New Activity Slot')
 
   // Create Activity Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -73,13 +68,6 @@ export const TripHomeScreen: React.FC = () => {
       type: 'Poi / Beach',
       duration: '180m',
     },
-    {
-      itmId: 'itm_empty_1',
-      time: '19:00',
-      title: 'No activity planned yet',
-      status: 'UNASSIGNED',
-      description: 'No activity planned yet for this slot.',
-    },
   ])
 
   // Day 2 Items
@@ -118,13 +106,6 @@ export const TripHomeScreen: React.FC = () => {
       currency: '₹',
       type: 'Dining & Leisure',
       duration: '150m',
-    },
-    {
-      itmId: 'itm_empty_2',
-      time: '21:30',
-      title: 'No activity planned yet',
-      status: 'UNASSIGNED',
-      description: 'No activity planned yet for this slot.',
     },
   ])
 
@@ -326,109 +307,100 @@ export const TripHomeScreen: React.FC = () => {
 
         {/* 4. Timeline View Container (Matches Image 2 & 3 Layout) */}
         <div className="flex flex-col mt-2">
-          {currentItems.map((slot, idx) => {
-            const isLast = idx === currentItems.length - 1
-            const isUnassigned = slot.status === 'UNASSIGNED'
+          {currentItems.length === 0 ? (
+            <div className="bg-card border border-slate-light/60 rounded-[12px] p-8 text-center my-4">
+              <p className="font-sans text-sm text-slate">No activities scheduled for Day {activeDay}.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setNewActivityDay(activeDay)
+                  setIsCreateModalOpen(true)
+                }}
+                className="mt-3 text-xs font-mono font-semibold text-route hover:underline cursor-pointer"
+              >
+                + Create Activity
+              </button>
+            </div>
+          ) : (
+            currentItems.map((slot, idx) => {
+              const isLast = idx === currentItems.length - 1
 
-            return (
-              <div key={slot.itmId} className="flex items-stretch gap-3 sm:gap-4 relative group">
-                {/* Time Label (Left) */}
-                <div className="w-12 sm:w-14 text-right shrink-0 pt-6">
-                  <span className="font-mono text-xs font-bold text-slate">
-                    {slot.time}
-                  </span>
-                </div>
+              return (
+                <div key={slot.itmId} className="flex items-stretch gap-3 sm:gap-4 relative group">
+                  {/* Time Label (Left) */}
+                  <div className="w-12 sm:w-14 text-right shrink-0 pt-6">
+                    <span className="font-mono text-xs font-bold text-slate">
+                      {slot.time}
+                    </span>
+                  </div>
 
-                {/* Timeline Axis & Dot */}
-                <div className="relative flex flex-col items-center shrink-0 w-4">
-                  {/* Timeline Dot */}
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#1b4332] border-2 border-paper z-10 mt-[26px] shadow-2xs group-hover:scale-125 transition-transform" />
-                  {/* Vertical Line */}
-                  {!isLast && (
-                    <div className="w-[1.5px] bg-slate-light/90 flex-1 my-1" />
-                  )}
-                </div>
+                  {/* Timeline Axis & Dot */}
+                  <div className="relative flex flex-col items-center shrink-0 w-4">
+                    {/* Timeline Dot */}
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#1b4332] border-2 border-paper z-10 mt-[26px] shadow-2xs group-hover:scale-125 transition-transform" />
+                    {/* Vertical Line */}
+                    {!isLast && (
+                      <div className="w-[1.5px] bg-slate-light/90 flex-1 my-1" />
+                    )}
+                  </div>
 
-                {/* Timeline Card (Right, Matches Image 2 & 3) */}
-                <div className="bg-card border border-slate-light rounded-[12px] p-5 sm:p-6 shadow-xs flex-1 flex flex-col justify-between gap-3 mb-5 hover:border-route/60 transition-all">
-                  <div className="flex flex-col gap-2">
-                    {/* Card Header: Title + Badge */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-serif text-lg font-bold text-ink">
-                          {slot.title}
-                        </h3>
-                        {slot.isLocked && (
-                          <span className="text-xs text-amber-600" title="Locked by Admin">
-                            🔒
+                  {/* Timeline Card (Right, Matches Image 2 & 3) */}
+                  <div className="bg-card border border-slate-light rounded-[12px] p-5 sm:p-6 shadow-xs flex-1 flex flex-col justify-between gap-3 mb-5 hover:border-route/60 transition-all">
+                    <div className="flex flex-col gap-2">
+                      {/* Card Header: Title + Badge */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-serif text-lg font-bold text-ink">
+                            {slot.title}
+                          </h3>
+                          {slot.isLocked && (
+                            <span className="text-xs text-amber-600" title="Locked by Admin">
+                              🔒
+                            </span>
+                          )}
+                        </div>
+                        {renderStatusBadge(slot.status)}
+                      </div>
+
+                      {/* Subtitle / Description */}
+                      <p className="font-sans text-xs text-slate leading-relaxed">
+                        {slot.description}
+                        {slot.cost && (
+                          <span className="font-mono font-medium text-ink/80 ml-1.5">
+                            • {slot.currency} {slot.cost}
                           </span>
                         )}
-                      </div>
-                      {renderStatusBadge(slot.status)}
+                      </p>
+
+                      {/* Meta Type & Duration if available */}
+                      {slot.type && (
+                        <p className="font-mono text-[11px] text-slate/80">
+                          Type: {slot.type} {slot.duration ? `· Duration: ${slot.duration}` : ''}
+                        </p>
+                      )}
+
+                      {slot.note && (
+                        <p className="font-sans text-xs text-slate italic bg-paper p-2 rounded border border-slate-light/50">
+                          "{slot.note}"
+                        </p>
+                      )}
                     </div>
 
-                    {/* Subtitle / Description */}
-                    <p className="font-sans text-xs text-slate leading-relaxed">
-                      {slot.description}
-                      {slot.cost && (
-                        <span className="font-mono font-medium text-ink/80 ml-1.5">
-                          • {slot.currency} {slot.cost}
-                        </span>
-                      )}
-                    </p>
-
-                    {/* Meta Type & Duration if available */}
-                    {slot.type && (
-                      <p className="font-mono text-[11px] text-slate/80">
-                        Type: {slot.type} {slot.duration ? `· Duration: ${slot.duration}` : ''}
-                      </p>
-                    )}
-
-                    {slot.note && (
-                      <p className="font-sans text-xs text-slate italic bg-paper p-2 rounded border border-slate-light/50">
-                        "{slot.note}"
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Card Actions (View Debate option for all activities listed) */}
-                  <div className="flex items-center justify-between w-full pt-1">
-                    {isUnassigned ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveSlotName(`Day ${activeDay} - ${slot.time} Slot`)
-                            setIsProposeOpen(true)
-                          }}
-                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>+ Propose Activity</span>
-                        </button>
-                        <Link
-                          to={`/trips/${trpId}/slots/itm_b94582f9`}
-                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
-                        >
-                          <span>View Debate</span>
-                          <span>&rarr;</span>
-                        </Link>
-                      </>
-                    ) : (
-                      <div className="flex items-center justify-end w-full">
-                        <Link
-                          to={`/trips/${trpId}/slots/${slot.itmId}`}
-                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
-                        >
-                          <span>View Debate</span>
-                          <span>&rarr;</span>
-                        </Link>
-                      </div>
-                    )}
+                    {/* Card Actions (View Debate option for all activities listed) */}
+                    <div className="flex items-center justify-end w-full pt-1">
+                      <Link
+                        to={`/trips/${trpId}/slots/${slot.itmId}`}
+                        className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
+                      >
+                        <span>View Debate</span>
+                        <span>&rarr;</span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
 
         {/* Modal for Creating New Activity (Activity details, day, time, 1-line description, budget) */}
@@ -541,17 +513,6 @@ export const TripHomeScreen: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Existing Propose Activity Modal for slot */}
-        <ProposeActivityModal
-          isOpen={isProposeOpen}
-          onClose={() => setIsProposeOpen(false)}
-          trpId={trpId}
-          slotTime={activeSlotName}
-          onSuccess={() => {
-            addToast('New activity slot submitted for group review!', 'success')
-          }}
-        />
       </div>
     </PageWrapper>
   )
