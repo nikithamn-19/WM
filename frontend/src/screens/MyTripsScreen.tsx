@@ -7,9 +7,53 @@ import { getTrips } from '../lib/api'
 import { useAuthContext } from '../context/AuthContext'
 import type { Trip } from '../types/trip'
 
+export function getTripStatus(trip: { startDate?: string; endDate?: string; status?: string }): 'Ongoing' | 'Finished' {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+
+  let tripEnd: Date | null = null
+
+  if (trip.endDate) {
+    const parsed = new Date(trip.endDate)
+    if (!isNaN(parsed.getTime())) {
+      tripEnd = parsed
+    }
+  }
+
+  if (!tripEnd && trip.startDate) {
+    const parsed = new Date(trip.startDate)
+    if (!isNaN(parsed.getTime())) {
+      tripEnd = parsed
+    } else {
+      // Handles e.g. "10-16 OCT" or "01-07 NOV" or "12-18 AUG 2024"
+      const match = trip.startDate.match(/(?:(\d{1,2})\s*-\s*)?(\d{1,2})\s+([A-Za-z]+)(?:\s+(\d{4}))?/)
+      if (match) {
+        const day = parseInt(match[2], 10)
+        const monthStr = match[3]
+        const year = match[4] ? parseInt(match[4], 10) : now.getFullYear()
+        const parsedDate = new Date(`${monthStr} ${day}, ${year} 23:59:59`)
+        if (!isNaN(parsedDate.getTime())) {
+          tripEnd = parsedDate
+        }
+      }
+    }
+  }
+
+  if (tripEnd) {
+    const tripEndDay = new Date(tripEnd.getFullYear(), tripEnd.getMonth(), tripEnd.getDate(), 23, 59, 59)
+    return tripEndDay < today ? 'Finished' : 'Ongoing'
+  }
+
+  if (trip.status && (trip.status.toLowerCase() === 'finished' || trip.status.toLowerCase() === 'completed')) {
+    return 'Finished'
+  }
+
+  return 'Ongoing'
+}
+
 export const MyTripsScreen: React.FC = () => {
   const navigate = useNavigate()
-  const { getToken } = useAuthContext()
+  const { getToken, currentUser } = useAuthContext()
 
   const [trips, setTrips] = useState<Trip[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -24,7 +68,6 @@ export const MyTripsScreen: React.FC = () => {
       endDate: '2026-10-16',
       partySize: 4,
       mode: 'Mode A',
-      status: 'Planning',
       coverImage: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80',
       members: ['Alex', 'Priya', 'Jordan', 'Sam'],
     },
@@ -37,9 +80,20 @@ export const MyTripsScreen: React.FC = () => {
       endDate: '2026-11-07',
       partySize: 5,
       mode: 'Mode NA',
-      status: 'Confirmed',
       coverImage: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80',
       members: ['Priya', 'Dev', 'Maya'],
+    },
+    {
+      trpId: 'trp_manali_2024',
+      ownerId: 'usr_nikitha',
+      title: 'Manali & Kasol Mountain Trek',
+      destinationCityId: 'Manali',
+      startDate: '12-18 AUG',
+      endDate: '2024-08-18',
+      partySize: 6,
+      mode: 'Mode A',
+      coverImage: 'https://images.unsplash.com/photo-1581793745862-99fde7fa73d2?auto=format&fit=crop&w=600&q=80',
+      members: ['Nikitha', 'Rohan', 'Sneha'],
     },
   ]
 
@@ -60,7 +114,7 @@ export const MyTripsScreen: React.FC = () => {
   }, [getToken])
 
   return (
-    <PageWrapper>
+    <PageWrapper currentUser={currentUser}>
       <div className="flex flex-col gap-6">
         {/* Header (PDF Page 6 Design) */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-light">
@@ -96,32 +150,36 @@ export const MyTripsScreen: React.FC = () => {
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {trips.map((trip: any) => (
-              <Link
-                key={trip.trpId}
-                to={`/trips/${trip.trpId}`}
-                className="bg-card border border-slate-light rounded-[12px] overflow-hidden shadow-xs hover:border-route transition-all flex flex-col justify-between group"
-              >
-                {/* Cover Image + Status Badge */}
-                <div className="relative aspect-[16/10] bg-paper overflow-hidden">
-                  <img
-                    src={
-                      trip.coverImage ||
-                      'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80'
-                    }
-                    alt={trip.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <span
-                    className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
-                      trip.status === 'Confirmed' || trip.status === 'confirmed'
-                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                    }`}
-                  >
-                    {trip.status || 'Planning'}
-                  </span>
-                </div>
+            {trips.map((trip: any) => {
+              const tripStatus = getTripStatus(trip)
+              const isFinished = tripStatus === 'Finished'
+
+              return (
+                <Link
+                  key={trip.trpId}
+                  to={`/trips/${trip.trpId}`}
+                  className="bg-card border border-slate-light rounded-[12px] overflow-hidden shadow-xs hover:border-route transition-all flex flex-col justify-between group"
+                >
+                  {/* Cover Image + Status Badge */}
+                  <div className="relative aspect-[16/10] bg-paper overflow-hidden">
+                    <img
+                      src={
+                        trip.coverImage ||
+                        'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80'
+                      }
+                      alt={trip.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <span
+                      className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
+                        isFinished
+                          ? 'bg-slate-200 text-slate-700 border border-slate-300'
+                          : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      }`}
+                    >
+                      {tripStatus}
+                    </span>
+                  </div>
 
                 {/* Card Details */}
                 <div className="p-4 flex flex-col gap-3">
@@ -155,7 +213,8 @@ export const MyTripsScreen: React.FC = () => {
                   </div>
                 </div>
               </Link>
-            ))}
+            )
+          })}
           </div>
         )}
       </div>

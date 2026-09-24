@@ -15,6 +15,7 @@ import { ResolvedItineraryScreen } from './screens/ResolvedItineraryScreen'
 import { AuditHistoryScreen } from './screens/AuditHistoryScreen'
 import { TripChatScreen } from './screens/TripChatScreen'
 import { MemoriesScreen } from './screens/MemoriesScreen'
+import { ProfileScreen } from './screens/ProfileScreen'
 
 import { AuthProvider } from './context/AuthContext'
 import { TripProvider, useTripContext } from './context/TripContext'
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="/sign-in" element={<LoginScreen />} />
             <Route path="/sign-up" element={<SignUpScreen />} />
             <Route path="/onboarding" element={<OnboardingScreen />} />
+            <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/trips" element={<MyTripsScreen />} />
             <Route path="/solo-or-group" element={<SoloOrGroupDecisionScreen />} />
             <Route path="/solo-matches" element={<SoloMatchScreen />} />

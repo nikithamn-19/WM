@@ -112,9 +112,13 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
         )}
 
         <Link
-          to="/sign-in"
-          title="Account / Switch User"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-paper border border-slate-light text-xs font-mono text-ink hover:border-route transition-all"
+          to="/profile"
+          title="Account / Profile"
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-paper border text-xs font-mono text-ink transition-all ${
+            location.pathname === '/profile'
+              ? 'border-route ring-1 ring-route/30'
+              : 'border-slate-light hover:border-route'
+          }`}
         >
           <div className="w-6 h-6 rounded-full bg-route text-card text-[10px] font-mono font-bold flex items-center justify-center">
             {currentUser?.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'N'}
