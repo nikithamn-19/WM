@@ -284,7 +284,7 @@ export async function updateAuthPreferences(
 
 // PATCH auth profile
 export async function updateProfile(
-  data: { displayName?: string; travelStyle?: string },
+  data: { displayName?: string; travelStyle?: string; budgetBand?: string; homeCityId?: string },
   getToken: () => Promise<string | null>
 ): Promise<any> {
   return apiFetch('/api/auth/profile', {
@@ -292,4 +292,62 @@ export async function updateProfile(
     body: JSON.stringify(data),
   }, getToken)
 }
+
+// GET auth profile & preferences (/api/auth/me)
+export async function getMe(getToken: () => Promise<string | null>): Promise<any> {
+  return apiFetch('/api/auth/me', {}, getToken)
+}
+
+// POST generate or regenerate invite code for a trip
+export async function generateInviteCode(
+  trpId: string,
+  getToken: () => Promise<string | null>
+): Promise<{ inviteCode: string; expiresAt?: string }> {
+  return apiFetch<{ inviteCode: string; expiresAt?: string }>(`/api/trips/${trpId}/invite-code`, {
+    method: 'POST',
+  }, getToken)
+}
+
+// POST join trip by code
+export async function joinByCode(
+  code: string,
+  message: string = '',
+  getToken: () => Promise<string | null>
+): Promise<{ status: string; tripId: string; autoApproved?: boolean; requestId?: string }> {
+  return apiFetch<{ status: string; tripId: string; autoApproved?: boolean; requestId?: string }>('/api/trips/join-by-code', {
+    method: 'POST',
+    body: JSON.stringify({ code, message }),
+  }, getToken)
+}
+
+// GET discover public trips preview
+export async function getDiscoverTrips(getToken: () => Promise<string | null>): Promise<Trip[]> {
+  return apiFetch<Trip[]>('/api/trips/discover', {}, getToken)
+}
+
+// POST register user directly to DB
+export async function registerUser(data: {
+  displayName: string
+  email: string
+  password?: string
+  age?: number
+  languages?: string[]
+  interests?: string[]
+  pace?: string
+}): Promise<any> {
+  return apiFetch('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// POST login user directly from DB
+export async function loginUser(data: { email: string; password?: string }): Promise<any> {
+  return apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+
 

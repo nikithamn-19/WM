@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ClerkProvider } from '@clerk/clerk-react'
+import { ClerkProvider, AuthenticateWithRedirectCallback } from '@clerk/clerk-react'
 
 import { SignUpScreen } from './screens/SignUpScreen'
 import { LoginScreen } from './screens/LoginScreen'
@@ -17,7 +17,7 @@ import { TripChatScreen } from './screens/TripChatScreen'
 import { MemoriesScreen } from './screens/MemoriesScreen'
 import { AccountScreen } from './screens/AccountScreen'
 
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuthContext } from './context/AuthContext'
 import { TripProvider, useTripContext } from './context/TripContext'
 import { Toast } from './components/ui/Toast'
 
@@ -40,6 +40,52 @@ function ToastList() {
   )
 }
 
+function ProtectedRoute({ children }: { children: React.JSX.Element }) {
+  const { currentUser, isLoaded } = useAuthContext()
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-paper flex items-center justify-center font-mono text-xs text-slate animate-pulse">
+        Loading WanderMatch session...
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/sign-in" replace />
+  }
+
+  return children
+}
+
+function PublicAuthRoute({ children }: { children: React.JSX.Element }) {
+  const { currentUser, isLoaded } = useAuthContext()
+
+  if (isLoaded && currentUser) {
+    return <Navigate to="/trips" replace />
+  }
+
+  return children
+}
+
+function RootRedirect() {
+  const { currentUser, isLoaded } = useAuthContext()
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-paper flex items-center justify-center font-mono text-xs text-slate animate-pulse">
+        Loading WanderMatch session...
+      </div>
+    )
+  }
+
+  if (currentUser) {
+    return <Navigate to="/trips" replace />
+  }
+
+  return <Navigate to="/sign-in" replace />
+}
+
 export default function App() {
   const isPlaceholderKey =
     !CLERK_KEY ||
@@ -54,24 +100,25 @@ export default function App() {
         <ToastList />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/trips" replace />} />
-            <Route path="/sign-in" element={<LoginScreen />} />
-            <Route path="/sign-up" element={<SignUpScreen />} />
-            <Route path="/onboarding" element={<OnboardingScreen />} />
-            <Route path="/account" element={<AccountScreen />} />
-            <Route path="/trips" element={<MyTripsScreen />} />
-            <Route path="/solo-or-group" element={<SoloOrGroupDecisionScreen />} />
-            <Route path="/solo-matches" element={<SoloMatchScreen />} />
-            <Route path="/solo" element={<SoloMatchScreen />} />
-            <Route path="/trips/new" element={<CreateTripScreen />} />
-            <Route path="/trips/:trpId/preview" element={<TripPreviewScreen />} />
-            <Route path="/trips/:trpId" element={<TripHomeScreen />} />
-            <Route path="/trips/:trpId/branches/:itmId" element={<BranchViewScreen />} />
-            <Route path="/trips/:trpId/resolved" element={<ResolvedItineraryScreen />} />
-            <Route path="/trips/:trpId/chat" element={<TripChatScreen />} />
-            <Route path="/trips/:trpId/memories" element={<MemoriesScreen />} />
-            <Route path="/trips/:trpId/photos" element={<MemoriesScreen />} />
-            <Route path="/trips/:trpId/history" element={<AuditHistoryScreen />} />
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signUpForceRedirectUrl="/onboarding" signInForceRedirectUrl="/trips" />} />
+            <Route path="/sign-in" element={<PublicAuthRoute><LoginScreen /></PublicAuthRoute>} />
+            <Route path="/sign-up" element={<PublicAuthRoute><SignUpScreen /></PublicAuthRoute>} />
+            <Route path="/onboarding" element={<ProtectedRoute><OnboardingScreen /></ProtectedRoute>} />
+            <Route path="/account" element={<ProtectedRoute><AccountScreen /></ProtectedRoute>} />
+            <Route path="/trips" element={<ProtectedRoute><MyTripsScreen /></ProtectedRoute>} />
+            <Route path="/solo-or-group" element={<ProtectedRoute><SoloOrGroupDecisionScreen /></ProtectedRoute>} />
+            <Route path="/solo-matches" element={<ProtectedRoute><SoloMatchScreen /></ProtectedRoute>} />
+            <Route path="/solo" element={<ProtectedRoute><SoloMatchScreen /></ProtectedRoute>} />
+            <Route path="/trips/new" element={<ProtectedRoute><CreateTripScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId/preview" element={<ProtectedRoute><TripPreviewScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId" element={<ProtectedRoute><TripHomeScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId/branches/:itmId" element={<ProtectedRoute><BranchViewScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId/resolved" element={<ProtectedRoute><ResolvedItineraryScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId/chat" element={<ProtectedRoute><TripChatScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId/memories" element={<ProtectedRoute><MemoriesScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId/photos" element={<ProtectedRoute><MemoriesScreen /></ProtectedRoute>} />
+            <Route path="/trips/:trpId/history" element={<ProtectedRoute><AuditHistoryScreen /></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </TripProvider>
@@ -84,3 +131,4 @@ export default function App() {
 
   return <ClerkProvider publishableKey={CLERK_KEY}>{routes}</ClerkProvider>
 }
+

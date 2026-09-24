@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useTripContext } from '../context/TripContext'
 import { apiFetch } from '../lib/api'
-import { Shield, Users, Plus, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { Shield, Users, Plus, Trash2, Check, ChevronDown, ChevronUp, Compass } from 'lucide-react'
 
 export interface ItineraryItemDraft {
   id: string
@@ -32,9 +32,10 @@ export const CreateTripScreen: React.FC = () => {
   const [title, setTitle] = useState('')
   const [destinationCity, setDestinationCity] = useState('Goa')
   const [startDate, setStartDate] = useState('2026-10-15')
-  const [endDate, setEndDate] = useState('2026-10-19')
+  const [endDate, setEndDate] = useState('2026-10-18') // Default 4 days (Oct 15, 16, 17, 18)
   const [partySize, setPartySize] = useState(4)
   const [mode, setMode] = useState<'Mode A' | 'Mode NA'>('Mode NA')
+  const [visibility, setVisibility] = useState<'public' | 'private'>('private')
   const [notes, setNotes] = useState('')
   const [isNotesExpanded, setIsNotesExpanded] = useState(false)
 
@@ -42,19 +43,22 @@ export const CreateTripScreen: React.FC = () => {
   const [createdTrpId, setCreatedTrpId] = useState<string>('')
   const [expectedVersion, setExpectedVersion] = useState<number>(1)
 
-  // Calculate days dynamically from start and end dates
+  // Calculate days dynamically from start and end dates using date-only UTC arithmetic
   const computeDaysArray = (startStr: string, endStr: string): number[] => {
-    if (!startStr || !endStr) return [1, 2, 3, 4, 5]
-    const s = new Date(startStr)
-    const e = new Date(endStr)
-    if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return [1, 2, 3]
-    const diffDays = Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1
+    if (!startStr || !endStr) return [1, 2, 3, 4]
+    const [sY, sM, sD] = startStr.split('-').map(Number)
+    const [eY, eM, eD] = endStr.split('-').map(Number)
+    if (!sY || !sM || !sD || !eY || !eM || !eD) return [1, 2, 3, 4]
+    const start = Date.UTC(sY, sM - 1, sD)
+    const end = Date.UTC(eY, eM - 1, eD)
+    if (end < start) return [1]
+    const diffDays = Math.round((end - start) / (1000 * 3600 * 24)) + 1
     const count = Math.max(1, Math.min(30, diffDays))
     return Array.from({ length: count }, (_, i) => i + 1)
   }
 
   // Phase 2 Form State
-  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5])
+  const [days, setDays] = useState<number[]>([1, 2, 3, 4])
   const [activeDay, setActiveDay] = useState<number>(1)
   const [items, setItems] = useState<ItineraryItemDraft[]>([
     {
@@ -120,6 +124,7 @@ export const CreateTripScreen: React.FC = () => {
           endDate,
           partySize,
           mode,
+          visibility,
           notes: notes.trim() || null,
           saveAsDraft,
         }),
@@ -138,18 +143,7 @@ export const CreateTripScreen: React.FC = () => {
         setPhase(2)
       }
     } catch (err: any) {
-      // Offline fallback
-      const mockId = `trp_${Date.now()}`
-      setCreatedTrpId(mockId)
-      const calculatedDays = computeDaysArray(startDate, endDate)
-      setDays(calculatedDays)
-      setActiveDay(1)
-      if (saveAsDraft) {
-        addToast(`Trip draft "${title}" saved to dashboard!`, 'success')
-        navigate('/trips')
-      } else {
-        setPhase(2)
-      }
+      addToast(err.message || 'Failed to create trip on backend', 'conflict')
     } finally {
       setIsSubmitting(false)
     }
@@ -355,7 +349,10 @@ export const CreateTripScreen: React.FC = () => {
                 </div>
 
                 <div
-                  onClick={() => setMode('Mode NA')}
+                  onClick={() => {
+                    setMode('Mode NA')
+                    setVisibility('private')
+                  }}
                   className={`border rounded-[10px] p-3.5 cursor-pointer transition-all flex flex-col gap-1.5 ${
                     mode === 'Mode NA'
                       ? 'border-route bg-route/5 ring-1 ring-route'
@@ -371,6 +368,60 @@ export const CreateTripScreen: React.FC = () => {
                   </div>
                   <p className="font-sans text-[11px] text-slate leading-normal">
                     Collaborative planning. Equal editor rights, instant auto-join, & democratic voting rounds.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Trip Visibility Selection */}
+            <div>
+              <label className="font-mono text-xs font-bold text-slate block mb-2">Trip Visibility</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div
+                  onClick={() => {
+                    if (mode === 'Mode NA') {
+                      addToast('Mode NA trips must remain Private', 'conflict')
+                      return
+                    }
+                    setVisibility('public')
+                  }}
+                  className={`border rounded-[10px] p-3.5 transition-all flex flex-col gap-1.5 ${
+                    mode === 'Mode NA' ? 'opacity-50 cursor-not-allowed border-slate-light bg-paper/20' : 'cursor-pointer'
+                  } ${
+                    visibility === 'public'
+                      ? 'border-route bg-route/5 ring-1 ring-route'
+                      : 'border-slate-light hover:border-route bg-paper/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-serif font-bold text-sm text-ink flex items-center gap-1.5">
+                      <Compass className="w-4 h-4 text-route" />
+                      <span>Public</span>
+                    </span>
+                    {visibility === 'public' && <Check className="w-4 h-4 text-route" />}
+                  </div>
+                  <p className="font-sans text-[11px] text-slate leading-normal">
+                    Discoverable by other travelers. Shows limited public preview without exposing internal itinerary.
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setVisibility('private')}
+                  className={`border rounded-[10px] p-3.5 cursor-pointer transition-all flex flex-col gap-1.5 ${
+                    visibility === 'private'
+                      ? 'border-route bg-route/5 ring-1 ring-route'
+                      : 'border-slate-light hover:border-route bg-paper/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-serif font-bold text-sm text-ink flex items-center gap-1.5">
+                      <Shield className="w-4 h-4 text-route" />
+                      <span>Private</span>
+                    </span>
+                    {visibility === 'private' && <Check className="w-4 h-4 text-route" />}
+                  </div>
+                  <p className="font-sans text-[11px] text-slate leading-normal">
+                    Invite-only. Excluded from Discover. Accessible only via direct invite code or member invitation.
                   </p>
                 </div>
               </div>

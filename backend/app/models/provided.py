@@ -16,7 +16,11 @@ class User(Base):
     travel_style = Column(String(100))
     traveller_type = Column(String(50))
     segment = Column(String(50))
+    date_of_signup = Column(String(50), nullable=True)
+    loyalty_tier = Column(String(50), nullable=True)
     status = Column(String(50))
+    avatar_url = Column(Text, nullable=True)
+    bio = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -27,6 +31,11 @@ class UserPreference(Base):
     preferred_languages = Column(Text) # BCP-47 comma-separated
     guide_language = Column(Text)
     interests = Column(Text) # comma-separated
+    hashtags = Column(Text, nullable=True) # comma-separated hashtags e.g. #adventure,#beach
+    preferred_mode = Column(String(20), default='Mode NA') # 'Mode A' | 'Mode NA'
+    trip_type_preference = Column(String(20), default='both') # 'solo' | 'group' | 'both'
+    same_age_group_only = Column(Boolean, default=False)
+    further_preferences = Column(Text, nullable=True) # free-form write-in text
     dietary_flags = Column(Text)
     accessibility_needs = Column(Text)
     preferred_currency = Column(String(10))
@@ -83,6 +92,8 @@ class Itinerary(Base):
     total_cost = Column(Numeric(12, 2))
     currency = Column(String(10), default='USD')
     total_duration_minutes = Column(Integer)
+    optimizer_weights = Column(Text, nullable=True)
+    total_carbon_kg = Column(Numeric(10, 3), nullable=True)
     status = Column(String(50), default='ACTIVE')
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

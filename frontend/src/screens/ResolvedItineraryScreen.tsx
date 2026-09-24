@@ -17,45 +17,6 @@ export const ResolvedItineraryScreen: React.FC = () => {
   const [confirmedSlots, setConfirmedSlots] = useState<ItineraryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const dummyConfirmedSlots: ItineraryItem[] = [
-    {
-      itmId: 'itm_b1',
-      itnId: 'itn_1',
-      dayIndex: 1,
-      sortOrder: 1,
-      title: 'Baga Beach & Water Sports',
-      cost: '1200.00',
-      currency: 'INR',
-      slotStatus: 'CONFIRMED',
-      locked: true,
-      status: 'confirmed',
-      itemType: 'poi',
-      entityType: 'poi',
-      entityId: 'poi_baga_beach',
-      startsAt: '2026-10-10T09:00:00Z',
-      endsAt: '2026-10-10T12:00:00Z',
-      timeSlot: '09:00 - 12:00 (Morning)',
-    },
-    {
-      itmId: 'itm_b2_resolved',
-      itnId: 'itn_1',
-      dayIndex: 1,
-      sortOrder: 2,
-      title: 'Dudhsagar Waterfalls & Jungle Safari',
-      cost: '2500.00',
-      currency: 'INR',
-      slotStatus: 'CONFIRMED',
-      locked: true,
-      status: 'confirmed',
-      itemType: 'poi',
-      entityType: 'poi',
-      entityId: 'poi_dudhsagar',
-      startsAt: '2026-10-10T14:00:00Z',
-      endsAt: '2026-10-10T17:00:00Z',
-      timeSlot: '14:00 - 17:00 (Afternoon)',
-    },
-  ]
-
   useEffect(() => {
     let isMounted = true
     setIsLoading(true)
@@ -65,13 +26,13 @@ export const ResolvedItineraryScreen: React.FC = () => {
         if (isMounted && data) {
           setTripData(data)
           const confirmed = (data.itinerary?.items || []).filter(
-            (item) => item.slotStatus === 'CONFIRMED'
+            (item) => item.slotStatus === 'CONFIRMED' || item.status === 'confirmed'
           )
-          setConfirmedSlots(confirmed.length > 0 ? confirmed : dummyConfirmedSlots)
+          setConfirmedSlots(confirmed)
         }
       })
       .catch(() => {
-        setConfirmedSlots(dummyConfirmedSlots)
+        if (isMounted) setConfirmedSlots([])
       })
       .finally(() => {
         if (isMounted) setIsLoading(false)

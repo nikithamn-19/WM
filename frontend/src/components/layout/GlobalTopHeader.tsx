@@ -112,15 +112,15 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
         )}
 
         <Link
-          to="/sign-in"
-          title="Account / Switch User"
+          to="/account"
+          title="User Account & Preferences"
           className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-paper border border-slate-light text-xs font-mono text-ink hover:border-route transition-all"
         >
           <div className="w-6 h-6 rounded-full bg-route text-card text-[10px] font-mono font-bold flex items-center justify-center">
             {currentUser?.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'ME'}
           </div>
           <span className="hidden sm:inline font-sans text-xs font-medium">
-            {currentUser?.displayName || 'Alex Chen'}
+            {currentUser?.displayName || 'User Profile'}
           </span>
         </Link>
       </div>
