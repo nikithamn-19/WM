@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #F7F5F0;
+  --color-ink: #14213D;
+  --color-route: #2F6F6B;
+  --color-route-dark: #204B48;
+  --color-amber: #E1A93A;
+  --color-clay: #C1502E;
+  --color-slate: #6B7280;
+  --color-slate-light: #E4E1DA;
+  --color-card: #FFFFFF;
+
+  --font-serif: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-line-draw {
+    animation: none;
+  }
+}
