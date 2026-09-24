@@ -4,7 +4,6 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
-import { FaceRegistration } from '../components/face/FaceRegistration'
 import { useTripContext } from '../context/TripContext'
 
 export interface MemoryPhotoItem {
@@ -13,6 +12,7 @@ export interface MemoryPhotoItem {
   day: string
   title: string
   url: string
+  isMyPhoto?: boolean
 }
 
 export const MemoriesScreen: React.FC = () => {
@@ -34,6 +34,7 @@ export const MemoriesScreen: React.FC = () => {
       day: 'Day 1',
       title: 'Group Jump at Sunset',
       url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
+      isMyPhoto: true,
     },
     {
       id: 'm2',
@@ -41,6 +42,7 @@ export const MemoriesScreen: React.FC = () => {
       day: 'Day 1',
       title: 'Poolside Sunset View',
       url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+      isMyPhoto: true,
     },
     {
       id: 'm3',
@@ -48,6 +50,7 @@ export const MemoriesScreen: React.FC = () => {
       day: 'Day 2',
       title: 'Seafood Platter at Shack',
       url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=600&q=80',
+      isMyPhoto: false,
     },
     {
       id: 'm4',
@@ -55,6 +58,7 @@ export const MemoriesScreen: React.FC = () => {
       day: 'Day 3',
       title: 'Heritage Fort Aguada View',
       url: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80',
+      isMyPhoto: false,
     },
   ]
 
@@ -76,7 +80,6 @@ export const MemoriesScreen: React.FC = () => {
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([])
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
-  const [isFaceRegistered, setIsFaceRegistered] = useState(false)
   const [isGeneratingStory, setIsGeneratingStory] = useState(false)
   const [tripStory, setTripStory] = useState(
     'The trip kicked off with lazy mornings at Artjuna, sipping fresh coffee under the banyan trees. As the days blurred into sun-drenched afternoons on Candolim, the evenings were marked by long, reflective sunset walks along the shoreline capturing the vibrant hues of the Arabian Sea.'
@@ -124,6 +127,22 @@ export const MemoriesScreen: React.FC = () => {
     addToast(`Downloading ${selectedPhotoIds.length} selected photos...`, 'success')
   }
 
+  // Delete single photo
+  const handleDeleteSingle = (id: string, title?: string) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== id))
+    setSelectedPhotoIds((prev) => prev.filter((selectedId) => selectedId !== id))
+    addToast(`Deleted "${title || 'photo'}"`, 'success')
+  }
+
+  // Delete selected photos
+  const handleDeleteSelected = () => {
+    const count = selectedPhotoIds.length
+    if (count === 0) return
+    setPhotos((prev) => prev.filter((p) => !selectedPhotoIds.includes(p.id)))
+    setSelectedPhotoIds([])
+    addToast(`Deleted ${count} photo(s) successfully!`, 'success')
+  }
+
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newFolderName.trim()) return
@@ -158,6 +177,7 @@ export const MemoriesScreen: React.FC = () => {
             day: targetDay,
             title: file.name.replace(/\.[^/.]+$/, ''),
             url: dataUrl || URL.createObjectURL(file),
+            isMyPhoto: true,
           })
         }
         reader.readAsDataURL(file)
@@ -188,7 +208,8 @@ export const MemoriesScreen: React.FC = () => {
   const filteredPhotos = photos.filter((p) => {
     const matchesDay = selectedDay === 'All' || p.day === selectedDay
     const matchesFolder = selectedFolder === 'All' || p.folder === selectedFolder
-    return matchesDay && matchesFolder
+    const matchesTab = activeTab === 'all' || (activeTab === 'my' ? (p.isMyPhoto ?? true) : true)
+    return matchesDay && matchesFolder && matchesTab
   })
 
   return (
@@ -233,7 +254,7 @@ export const MemoriesScreen: React.FC = () => {
               variant="secondary"
               onClick={handleGenerateStory}
               disabled={isGeneratingStory}
-              className="w-full py-2 text-xs"
+              className="w-full py-2 text-xs cursor-pointer"
             >
               {isGeneratingStory ? 'Generating...' : 'Generate Trip Story ✨'}
             </Button>
@@ -272,24 +293,32 @@ export const MemoriesScreen: React.FC = () => {
               <Button
                 variant="secondary"
                 onClick={handleDownloadAll}
-                className="text-xs px-3 py-1.5 min-h-[36px]"
+                className="text-xs px-3 py-1.5 min-h-[36px] cursor-pointer"
               >
                 Download All
               </Button>
 
               {selectedPhotoIds.length > 0 && (
-                <Button
-                  onClick={handleDownloadSelected}
-                  className="text-xs px-3 py-1.5 min-h-[36px]"
-                >
-                  Download Selected ({selectedPhotoIds.length})
-                </Button>
+                <>
+                  <Button
+                    onClick={handleDownloadSelected}
+                    className="text-xs px-3 py-1.5 min-h-[36px] cursor-pointer"
+                  >
+                    Download Selected ({selectedPhotoIds.length})
+                  </Button>
+                  <Button
+                    onClick={handleDeleteSelected}
+                    className="text-xs px-3 py-1.5 min-h-[36px] bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs border border-rose-700"
+                  >
+                    🗑 Delete Selected ({selectedPhotoIds.length})
+                  </Button>
+                </>
               )}
 
               <Button
                 variant="secondary"
                 onClick={() => setIsNewFolderOpen(true)}
-                className="text-xs px-3 py-1.5 min-h-[36px]"
+                className="text-xs px-3 py-1.5 min-h-[36px] cursor-pointer"
               >
                 + Create Folder
               </Button>
@@ -303,7 +332,7 @@ export const MemoriesScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('all')}
-                className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all ${
+                className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all cursor-pointer ${
                   activeTab === 'all'
                     ? 'border-route text-route'
                     : 'border-transparent text-slate hover:text-ink'
@@ -314,13 +343,13 @@ export const MemoriesScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('my')}
-                className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all ${
+                className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all cursor-pointer ${
                   activeTab === 'my'
                     ? 'border-route text-route'
                     : 'border-transparent text-slate hover:text-ink'
                 }`}
               >
-                My Photos (Face Matched)
+                My Photos
               </button>
             </div>
 
@@ -358,13 +387,6 @@ export const MemoriesScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Face Registration prompt for My Photos */}
-          {activeTab === 'my' && !isFaceRegistered && (
-            <div className="p-4 bg-paper border border-slate-light rounded-[10px] my-2">
-              <FaceRegistration onComplete={() => setIsFaceRegistered(true)} />
-            </div>
-          )}
-
           {/* Photo Grid & Empty State */}
           {filteredPhotos.length === 0 ? (
             /* Empty State for Newly Created or Empty Folders */
@@ -377,10 +399,12 @@ export const MemoriesScreen: React.FC = () => {
                   No photos attached yet
                 </h3>
                 <p className="font-sans text-xs text-slate mt-1 max-w-sm">
-                  There are no photos in folder "{selectedFolder}". Upload photos from your gallery to add memories here!
+                  {activeTab === 'my'
+                    ? 'No photos found in My Photos for this filter. Upload from your gallery to add memories here!'
+                    : `There are no photos in folder "${selectedFolder}". Upload photos from your gallery to add memories here!`}
                 </p>
               </div>
-              <Button onClick={triggerUpload} className="py-2 px-5 text-xs font-semibold">
+              <Button onClick={triggerUpload} className="py-2 px-5 text-xs font-semibold cursor-pointer">
                 + Add Photos from Gallery
               </Button>
             </div>
@@ -419,18 +443,48 @@ export const MemoriesScreen: React.FC = () => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
 
-                    {/* Checkbox overlay */}
-                    <div className="absolute top-2 right-2">
+                    {/* Delete Photo Button (Top-Left) */}
+                    <div className="absolute top-2 left-2 z-10">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteSingle(photo.id, photo.title)
+                        }}
+                        className="w-7 h-7 rounded-full bg-paper/90 hover:bg-rose-600 text-slate hover:text-white border border-slate-light/80 shadow-xs flex items-center justify-center transition-all cursor-pointer opacity-75 group-hover:opacity-100 hover:scale-110"
+                        title="Delete photo"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Checkbox overlay (Top-Right) */}
+                    <div className="absolute top-2 right-2 z-10">
                       <div
-                        className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold ${
-                          isSelected ? 'bg-route text-card border-route' : 'bg-paper/80 border-slate-light text-transparent'
+                        className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all ${
+                          isSelected ? 'bg-route text-card border-route' : 'bg-paper/80 border-slate-light text-transparent hover:border-slate'
                         }`}
                       >
                         ✓
                       </div>
                     </div>
 
-                    <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end text-card text-xs font-sans">
+                    {/* Hover Metadata Overlay */}
+                    <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end text-card text-xs font-sans pointer-events-none">
                       <span className="font-bold">{photo.title}</span>
                       <span className="font-mono text-[10px] text-card/80">{photo.day}</span>
                     </div>
