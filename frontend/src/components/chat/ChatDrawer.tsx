@@ -4,6 +4,8 @@ import { Button } from '../ui/Button'
 import { getChatMessages, sendChatMessage, type ChatMessage } from '../../lib/api'
 import { useAuthContext } from '../../context/AuthContext'
 import { useTripContext } from '../../context/TripContext'
+import { X } from 'lucide-react'
+
 
 export interface ChatDrawerProps {
   trpId: string
@@ -26,25 +28,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const dummyFallbackMessages: ChatMessage[] = [
-    {
-      msgId: 'msg_1',
-      trpId,
-      usrId: 'usr_owner',
-      displayName: 'Alex Chen',
-      text: 'Hey group! Should we do sunrise trek at Mount Batur or thermal springs spa?',
-      sentAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      msgId: 'msg_2',
-      trpId,
-      usrId: 'usr_priya',
-      displayName: 'Priya Sharma',
-      text: 'I prefer thermal springs spa after a long flight!',
-      sentAt: new Date(Date.now() - 1800000).toISOString(),
-    },
-  ]
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -55,14 +38,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     setIsLoading(true)
     getChatMessages(trpId, getToken)
       .then((data) => {
-        if (data && data.length > 0) {
-          setMessages(data)
-        } else {
-          setMessages(dummyFallbackMessages)
-        }
+        setMessages(data || [])
       })
       .catch(() => {
-        setMessages(dummyFallbackMessages)
+        setMessages([])
       })
       .finally(() => {
         setIsLoading(false)
@@ -123,9 +102,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         {onClose && isMobileDrawer && (
           <button
             onClick={onClose}
-            className="text-slate hover:text-ink font-mono text-lg font-bold px-2"
+            className="text-slate hover:text-ink font-mono text-lg font-bold px-2 flex items-center justify-center"
           >
-            ✕
+            <X className="w-5 h-5 text-slate" />
           </button>
         )}
       </div>
@@ -135,6 +114,11 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         {isLoading ? (
           <div className="text-center font-mono text-xs text-slate p-4 animate-pulse">
             Loading chat messages...
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center font-mono text-xs text-slate p-8 border border-dashed border-slate-light rounded-[8px] flex flex-col items-center justify-center gap-1">
+            <span className="font-bold text-ink text-sm">No messages yet</span>
+            <span>Start the group conversation for this trip!</span>
           </div>
         ) : (
           messages.map((msg) => (

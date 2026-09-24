@@ -3,6 +3,7 @@ import { Button } from '../ui/Button'
 import { proposeChatMessage } from '../../lib/api'
 import { useAuthContext } from '../../context/AuthContext'
 import { useTripContext } from '../../context/TripContext'
+import { CheckCircle2 } from 'lucide-react'
 
 export interface ChatProposeButtonProps {
   msgId: string
@@ -40,8 +41,9 @@ export const ChatProposeButton: React.FC<ChatProposeButtonProps> = ({ msgId }) =
 
   if (agreedStatus) {
     return (
-      <span className="text-xs font-mono text-route bg-route/10 px-2.5 py-1 rounded-full font-bold self-start mt-1">
-        ✓ {agreedStatus}
+      <span className="text-xs font-mono text-route bg-route/10 px-2.5 py-1 rounded-full font-bold self-start mt-1 flex items-center gap-1">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        {agreedStatus}
       </span>
     )
   }

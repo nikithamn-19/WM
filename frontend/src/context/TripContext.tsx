@@ -7,7 +7,7 @@ import { apiFetch } from '../lib/api'
 export interface ToastItem {
   id: string
   message: string
-  type: 'info' | 'success' | 'conflict'
+  type: 'info' | 'success' | 'conflict' | 'error'
 }
 
 export interface TripContextValue {
@@ -16,7 +16,7 @@ export interface TripContextValue {
   wsStatus: 'connecting' | 'connected' | 'disconnected'
   toasts: ToastItem[]
   dismissToast: (id: string) => void
-  addToast: (message: string, type?: 'info' | 'success' | 'conflict') => void
+  addToast: (message: string, type?: 'info' | 'success' | 'conflict' | 'error') => void
 }
 
 const TripContext = createContext<TripContextValue | undefined>(undefined)
@@ -26,7 +26,7 @@ export const TripProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
-  const addToast = useCallback((message: string, type: 'info' | 'success' | 'conflict' = 'info') => {
+  const addToast = useCallback((message: string, type: 'info' | 'success' | 'conflict' | 'error' = 'info') => {
     const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`
     setToasts((prev) => [...prev, { id, message, type }])
   }, [])

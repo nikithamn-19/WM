@@ -46,6 +46,7 @@ export interface Itinerary {
 export interface Trip {
   trpId: string
   ownerId: string
+  ownerUserId?: string
   title: string
   destinationCityId: string
   startDate: string
@@ -56,4 +57,7 @@ export interface Trip {
   homeCurrency: string
   members: TripMember[]
   itinerary?: Itinerary
+  items?: ItineraryItem[]
+  visibility?: string
+  notes?: string
 }

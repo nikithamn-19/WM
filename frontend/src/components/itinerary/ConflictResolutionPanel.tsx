@@ -3,6 +3,8 @@ import { Button } from '../ui/Button'
 import { apiFetch } from '../../lib/api'
 import { useAuthContext } from '../../context/AuthContext'
 import { useTripContext } from '../../context/TripContext'
+import { CheckCircle2, AlertTriangle } from 'lucide-react'
+
 
 export interface BlendedPlanData {
   title: string
@@ -24,21 +26,9 @@ export interface ConflictResolutionPanelProps {
   onExtend?: () => void
 }
 
-export const dummyBlendedPlan = {
-  action: 'BLENDED',
-  blendedPlan: {
-    title: 'Dudhsagar Waterfalls & Jungle Jeep Safari Combo',
-    rationale: 'Combines the jungle jeep adventure with spice plantation tour to accommodate both adventurous and relaxed member preferences.',
-    costDelta: '2500.00',
-    currency: 'INR',
-    constraintStatus: 'satisfied' as const,
-  },
-  currentRound: 2,
-}
-
 export const ConflictResolutionPanel: React.FC<ConflictResolutionPanelProps> = ({
   currentRound = 2,
-  blendedPlan = dummyBlendedPlan.blendedPlan,
+  blendedPlan,
   mode = 'Mode A',
   currentUserRole = 'owner',
   itmId,
@@ -51,6 +41,10 @@ export const ConflictResolutionPanel: React.FC<ConflictResolutionPanelProps> = (
   const { addToast } = useTripContext()
 
   const [loadingAction, setLoadingAction] = useState<'accept' | 'branch' | 'extend' | null>(null)
+
+  if (!blendedPlan) {
+    return null
+  }
 
   const isOwner = currentUserRole === 'owner'
   const isModeA = mode === 'Mode A'
@@ -116,9 +110,15 @@ export const ConflictResolutionPanel: React.FC<ConflictResolutionPanelProps> = (
 
         <div className="pt-1.5 border-t border-slate-light/40 flex items-center justify-between text-xs">
           {blendedPlan.constraintStatus === 'satisfied' ? (
-            <span className="text-route font-medium font-sans">✓ All constraints satisfied</span>
+            <span className="text-route font-medium font-sans flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              All constraints satisfied
+            </span>
           ) : (
-            <span className="text-amber font-medium font-sans">⚠ Regenerated once</span>
+            <span className="text-amber-800 font-medium font-sans flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              Regenerated once
+            </span>
           )}
         </div>
       </div>

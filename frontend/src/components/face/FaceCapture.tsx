@@ -1,4 +1,6 @@
 import React, { useRef } from 'react'
+import { CheckCircle2 } from 'lucide-react'
+
 
 export interface FaceCaptureProps {
   label: string
@@ -39,7 +41,7 @@ export const FaceCapture: React.FC<FaceCaptureProps> = ({
       {selectedFile ? (
         <div className="flex flex-col items-center gap-1">
           <div className="w-12 h-12 rounded-full bg-route text-card font-mono text-xs font-bold flex items-center justify-center">
-            ✓
+            <CheckCircle2 className="w-5 h-5 text-card" />
           </div>
           <span className="text-xs font-sans text-ink font-medium truncate max-w-[90px]">
             {selectedFile.name}

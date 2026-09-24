@@ -1,4 +1,4 @@
-import React from 'react'
+import { Star } from 'lucide-react'
 import type { GuideMatch } from '../../types/solo'
 import { getLanguageName } from './CompatibilityCard'
 
@@ -39,9 +39,13 @@ export const GuideCard: React.FC<GuideCardProps> = ({ match }) => {
           Day Rate: ${guide.dayRate} {guide.currency}/day
         </span>
         {guide.rating !== null && guide.rating !== undefined && (
-          <span className="text-amber font-bold">{guide.rating} ★</span>
+          <span className="text-amber-700 font-bold flex items-center gap-1">
+            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+            {guide.rating}
+          </span>
         )}
       </div>
+
 
       {readableLangs && (
         <div className="text-[11px] font-mono text-slate">

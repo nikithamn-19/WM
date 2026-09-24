@@ -152,11 +152,11 @@ export const TopNav: React.FC<TopNavProps> = ({
 
         {/* Profile Avatar */}
         <Link
-          to="/profile"
-          title="Account / Profile"
+          to="/account"
+          title="User Account & Preferences"
           className="w-8 h-8 rounded-full bg-route text-card text-xs font-mono font-bold flex items-center justify-center border border-route hover:opacity-90 transition-all"
         >
-          {currentUser?.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'N'}
+          {currentUser?.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'ME'}
         </Link>
       </div>
     </header>

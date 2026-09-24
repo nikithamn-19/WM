@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GroupMatch } from '../../types/solo'
 import { Button } from '../ui/Button'
+import { CheckCircle } from 'lucide-react'
 
 export const languageNames: Record<string, string> = {
   'en': 'English',
@@ -46,10 +47,12 @@ export const CompatibilityCard: React.FC<CompatibilityCardProps> = ({ match, onJ
 
       <div className="flex flex-wrap gap-2 text-xs font-mono text-slate">
         {match.ageGroupMatch && (
-          <span className="bg-route/10 text-route px-2.5 py-1 rounded-full font-bold">
-            Age Group ✓
+          <span className="bg-route/10 text-route px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5" />
+            Age Group
           </span>
         )}
+
         {match.sharedLanguages.length > 0 && (
           <span className="bg-slate/10 px-2.5 py-1 rounded-full">
             Languages: {readableLangs}
