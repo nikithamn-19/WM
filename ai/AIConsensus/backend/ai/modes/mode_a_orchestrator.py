@@ -26,6 +26,7 @@ def run_mode_a_round(
     trip_context: Dict[str, Any],
     current_round: int = 1,
     admin_action: Optional[str] = None,  # 'force_branch' | 'extend' | 'accept' | None
+    alternative_proposals: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Mode A consensus round.
@@ -143,6 +144,7 @@ def run_mode_a_round(
             itinerary_item=itinerary_item,
             trip_context=trip_context,
             current_round=current_round,
+            alternative_proposals=alternative_proposals,
         )
         blend_result["advisory"] = True  # Admin must still approve
         blend_result["admin_recommendation"] = "Accept blended plan — objections appear resolvable"

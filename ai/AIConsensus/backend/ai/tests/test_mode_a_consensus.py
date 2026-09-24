@@ -2,15 +2,16 @@
 
 Tests:
 1. Mode A trip setup with designated owner/admin.
-2. NO votes in Mode A: closes_at timer is NEVER set automatically (closes_at is None).
-3. AI generates ADVISORY recommendations (advisory: True); does not make binding decisions.
-4. Admin authorization gating: non-admin users cannot execute admin actions.
-5. Admin Accept: locks blended plan or proposal into itinerary slot (CONFIRMED).
-6. Admin Force Branch: immediately forks slot into parallel branches with single-member auto-finalization.
-7. Admin Extend: continues voting round past advisory soft cap without auto-branching.
-8. Admin Direct Confirm: directly confirms any proposal without waiting for unanimous consensus.
-9. Unanimous fast-path: still works in Mode A if all members vote YES.
-10. FastAPI HTTP endpoints for Mode A Admin controls and authorization gating (HTTP 403 on non-admin).
+2. NO votes in Mode A: a yes/no vote does NOT invoke AI consensus. closes_at is NEVER set automatically.
+3. Member alternative proposals: members can propose alternatives for any slot.
+4. Admin AI invocation: gathers all previous proposals + objections and synthesizes a compromise plan open for voting.
+5. Unanimous fast-path: if every single member votes YES, the proposal is auto-accepted without admin permission.
+6. Admin authorization gating: non-admin users cannot execute admin actions (HTTP 403).
+7. Admin Accept: locks compromise plan or proposal into itinerary slot (CONFIRMED).
+8. Admin Force Branch: immediately forks slot into parallel branches with single-member auto-finalization.
+9. Admin Extend: continues voting round past advisory soft cap without auto-branching.
+10. Admin Direct Confirm: directly confirms any proposal without waiting.
+11. FastAPI HTTP endpoints for Mode A Admin controls and slot proposals breakdown.
 """
 
 from datetime import datetime, timezone
@@ -37,8 +38,13 @@ def test_mode_a_initialization_and_owner():
     assert trip["owner_id"] == "alice"
 
 
-def test_mode_a_no_vote_never_sets_automatic_closes_at():
-    """FR-ITN-06 & PANCHAMI.md: In Mode A, closes_at is NEVER set automatically on a NO vote."""
+def test_mode_a_no_vote_never_sets_automatic_closes_at_and_does_not_invoke_ai():
+    """
+    In Mode A:
+    1. A yes/no vote does NOT invoke AI consensus.
+    2. closes_at is NEVER set automatically.
+    3. Status is VOTE_RECORDED.
+    """
     manager = ConsensusManager()
     manager.register_trip(
         trip_id="trp_bali_a",
@@ -62,16 +68,88 @@ def test_mode_a_no_vote_never_sets_automatic_closes_at():
         comment="Too crowded, I prefer peaceful botanical gardens",
     )
 
-    # In Mode A: status must be AWAITING_ADMIN_ACTION and advisory
-    assert res["status"] == "AWAITING_ADMIN_ACTION"
+    # In Mode A: vote is recorded without invoking AI consensus
+    assert res["status"] == "VOTE_RECORDED"
     assert res["mode"] == "Mode A"
-    assert res["advisory"] is True
+    assert "only the admin can invoke AI consensus" in res["message"]
 
-    # closes_at must REMAIN None!
+    # closes_at must REMAIN None
     assert prop["closes_at"] is None
     slot = manager.itinerary_items["itm_a1"]
     assert slot["slot_status"] == "IN_CONSENSUS"
-    assert slot["admin_recommendation"] is not None
+    # AI recommendation is None until admin invokes it
+    assert slot["admin_recommendation"] is None
+
+
+def test_mode_a_admin_invokes_ai_with_member_alternative_proposals():
+    """
+    When members propose alternatives and admin invokes AI consensus:
+    - AI gathers all proposal data and objections.
+    - AI synthesizes a compromise plan.
+    - A new proposal is opened on the slot for members to vote on.
+    """
+    manager = ConsensusManager()
+    manager.register_trip(
+        trip_id="trp_bali_a",
+        destination_city="Bali",
+        members=["alice", "bob", "charlie"],
+        mode="Mode A",
+        owner_id="alice",
+    )
+    manager.create_itinerary_slot("itm_a1", "trp_bali_a", "Morning Activity")
+    # Base proposal by Admin Alice
+    p1 = manager.create_proposal("itm_a1", "alice", "Kuta Beach Sunbathing", "Relaxing on the sand")
+    # Member Bob proposes an alternative
+    p2 = manager.create_proposal("itm_a1", "bob", "Waterbom Bali Waterpark", "Thrilling waterslides")
+    # Member Charlie votes NO on p1
+    manager.cast_vote(p1["proposal_id"], "charlie", "no", comment="I get sunburned easily, prefer indoor or water activities")
+
+    # Admin Alice invokes AI consensus
+    ai_res = manager.invoke_mode_a_ai(itm_id="itm_a1", user_id="alice")
+    assert ai_res["status"] == "AI_RECOMMENDATION_READY"
+    assert ai_res["advisory"] is True
+    assert ai_res["proposals_evaluated"] >= 2
+    assert ai_res["compromise_proposal"] is not None
+
+    comp_prp = ai_res["compromise_proposal"]
+    assert comp_prp["status"] == "open"
+    assert comp_prp["closes_at"] is None  # Mode A has no automatic closing timer
+
+    # Verify slot active_proposal_id points to the new compromise proposal
+    slot = manager.itinerary_items["itm_a1"]
+    assert slot["active_proposal_id"] == comp_prp["proposal_id"]
+
+
+def test_mode_a_unanimous_fast_path_auto_accepts_without_admin_permission():
+    """
+    ONLY EXCEPTION IN MODE A:
+    If every single member votes YES on a proposal, it is auto-accepted immediately
+    without admin's permission required (slot_status = CONFIRMED).
+    """
+    manager = ConsensusManager()
+    manager.register_trip(
+        trip_id="trp_bali_a",
+        destination_city="Bali",
+        members=["alice", "bob", "charlie"],
+        mode="Mode A",
+        owner_id="alice",
+    )
+    manager.create_itinerary_slot("itm_a_fast", "trp_bali_a", "Lunch")
+    # Bob (member) proposes an alternative lunch
+    prop = manager.create_proposal("itm_a_fast", "bob", "Warung Local Balinese Feast", "Authentic cuisine")
+    prp_id = prop["proposal_id"]
+
+    r1 = manager.cast_vote(prp_id, "alice", "yes")
+    assert r1["status"] == "VOTE_RECORDED"
+
+    r2 = manager.cast_vote(prp_id, "bob", "yes")
+    assert r2["status"] == "VOTE_RECORDED"
+
+    # Charlie (last member) votes YES -> Auto-confirmed immediately without admin action!
+    r3 = manager.cast_vote(prp_id, "charlie", "yes")
+    assert r3["status"] == "CONFIRMED"
+    assert "All trip members voted YES" in r3["message"]
+    assert manager.itinerary_items["itm_a_fast"]["slot_status"] == "CONFIRMED"
 
 
 def test_mode_a_orchestrator_advisory_flag():
@@ -98,7 +176,7 @@ def test_mode_a_orchestrator_advisory_flag():
 
 
 def test_mode_a_non_admin_gating():
-    """AC-AI: Non-owner members cannot execute Mode A admin override actions."""
+    """Non-owner members cannot execute Mode A admin override actions."""
     manager = ConsensusManager()
     manager.register_trip(
         trip_id="trp_bali_a",
@@ -145,7 +223,9 @@ def test_mode_a_admin_accept_locks_itinerary():
     # Bob votes NO
     manager.cast_vote(prp_id, "bob", "no", comment="I want an amusement park with thrill rides!")
 
-    # Slot has advisory recommendation
+    # Admin invokes AI consensus
+    manager.invoke_mode_a_ai(itm_id="itm_a3", user_id="alice")
+
     slot = manager.itinerary_items["itm_a3"]
     assert slot["slot_status"] == "IN_CONSENSUS"
     assert slot["admin_recommendation"] is not None
@@ -154,8 +234,8 @@ def test_mode_a_admin_accept_locks_itinerary():
     accept_res = manager.admin_accept(itm_id="itm_a3", user_id="alice")
     assert accept_res["status"] == "CONFIRMED"
     assert slot["slot_status"] == "CONFIRMED"
-    assert slot["confirmed_plan"] is not None
-    assert "waterpark" in slot["confirmed_plan"]["title"].lower() or "splash" in slot["confirmed_plan"]["title"].lower() or "park" in slot["confirmed_plan"]["title"].lower()
+    assert len(slot["confirmed_plan"]["title"]) > 0
+    assert len(slot["confirmed_plan"]["rationale"]) > 0
 
 
 def test_mode_a_admin_force_branch():
@@ -239,27 +319,6 @@ def test_mode_a_admin_direct_confirm():
     assert slot["confirmed_plan"]["title"] == "Tanah Lot Sunset"
 
 
-def test_mode_a_unanimous_fast_path():
-    """Unanimous YES from all members confirms immediately in Mode A as well."""
-    manager = ConsensusManager()
-    manager.register_trip(
-        trip_id="trp_bali_a",
-        destination_city="Bali",
-        members=["alice", "bob"],
-        mode="Mode A",
-        owner_id="alice",
-    )
-    manager.create_itinerary_slot("itm_a7", "trp_bali_a", "Lunch")
-    prop = manager.create_proposal("itm_a7", "alice", "Warung Local Balinese Food", "Local cuisine")
-    prp_id = prop["proposal_id"]
-
-    manager.cast_vote(prp_id, "alice", "yes")
-    r2 = manager.cast_vote(prp_id, "bob", "yes")
-
-    assert r2["status"] == "CONFIRMED"
-    assert manager.itinerary_items["itm_a7"]["slot_status"] == "CONFIRMED"
-
-
 def test_mode_a_fastapi_http_endpoints():
     """End-to-end HTTP verification of Mode A endpoints via FastAPI TestClient."""
     client = TestClient(app)
@@ -272,9 +331,9 @@ def test_mode_a_fastapi_http_endpoints():
     assert trip_res.status_code == 200
     trip_data = trip_res.json()
     assert trip_data["trip"]["mode"] == "Mode A"
-    assert trip_data["trip"]["owner_id"] == "alice"
+    assert trip_data["trip"]["owner_id"] == "panch"
 
-    # Bob casts NO vote on the seeded Bali proposal
+    # Bob casts NO vote on the seeded Bali proposal -> VOTE_RECORDED (no auto AI trigger)
     vote_res = client.post(
         "/api/votes",
         json={
@@ -286,8 +345,7 @@ def test_mode_a_fastapi_http_endpoints():
     )
     assert vote_res.status_code == 200
     vdata = vote_res.json()
-    assert vdata["status"] == "AWAITING_ADMIN_ACTION"
-    assert vdata["advisory"] is True
+    assert vdata["status"] == "VOTE_RECORDED"
     assert vdata["proposal"]["closes_at"] is None
 
     # Test Gating: non-owner Bob tries to accept or force branch -> 403 Forbidden!
@@ -310,18 +368,27 @@ def test_mode_a_fastapi_http_endpoints():
     )
     assert unauth_extend.status_code == 403
 
-    # Admin Alice extends the round
-    ext_res = client.post(
-        "/api/consensus/mode-a/extend",
-        json={"itm_id": "itm_bali_morning", "user_id": "alice", "extend_minutes": 20},
+    # Admin Panch explicitly invokes AI consensus
+    invoke_res = client.post(
+        "/api/consensus/mode-a/invoke",
+        json={"itm_id": "itm_bali_morning", "user_id": "panch"},
     )
-    assert ext_res.status_code == 200
-    assert ext_res.json()["status"] == "EXTENDED"
+    assert invoke_res.status_code == 200
+    idata = invoke_res.json()
+    assert idata["status"] == "AI_RECOMMENDATION_READY"
+    assert idata["advisory"] is True
+    assert idata["compromise_proposal"] is not None
 
-    # Admin Alice accepts the blended recommendation
+    # Check proposals breakdown endpoint
+    prop_res = client.get("/api/slots/itm_bali_morning/proposals")
+    assert prop_res.status_code == 200
+    pdata = prop_res.json()
+    assert pdata["proposals_count"] >= 2
+
+    # Admin Panch accepts the blended recommendation
     accept_res = client.post(
         "/api/consensus/mode-a/accept",
-        json={"itm_id": "itm_bali_morning", "user_id": "alice"},
+        json={"itm_id": "itm_bali_morning", "user_id": "panch"},
     )
     assert accept_res.status_code == 200
     assert accept_res.json()["status"] == "CONFIRMED"

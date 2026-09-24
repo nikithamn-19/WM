@@ -55,7 +55,7 @@ def get_llm_config():
     # 2. Groq cloud
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
-        return "https://api.groq.com/openai/v1", groq_key, "openai/gpt-oss-120b"
+        return "https://api.groq.com/openai/v1", groq_key, "openai/gpt-oss-20b"
 
     # 3. Official OpenAI
     openai_key = os.environ.get("OPENAI_API_KEY")

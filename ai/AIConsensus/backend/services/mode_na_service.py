@@ -259,20 +259,15 @@ class ModeNAConsensusManager:
             is_mode_a = trip.get("mode") == "Mode A"
             if is_mode_a:
                 # In Mode A: Closes timer is NEVER set automatically.
-                # AI provides advisory recommendation; admin retains final authority.
-                ai_result = self._trigger_mode_a_ai(proposal, slot, trip, curr_time)
-                slot["admin_recommendation"] = ai_result
+                # A yes/no vote does NOT invoke AI consensus; only the trip admin can invoke AI consensus.
                 return {
                     "vote": vote_obj,
-                    "status": "AWAITING_ADMIN_ACTION",
+                    "status": "VOTE_RECORDED",
                     "mode": "Mode A",
                     "message": (
-                        "NO vote recorded in Mode A (Admin-Led). The 10-minute timer is NOT started. "
-                        "AI generated an advisory recommendation for the trip admin."
+                        "NO vote recorded in Mode A (Admin-Led). A yes/no vote does NOT invoke AI consensus; "
+                        "only the admin can invoke AI consensus."
                     ),
-                    "advisory": True,
-                    "admin_recommendation": ai_result.get("admin_recommendation"),
-                    "advisory_result": ai_result,
                     "proposal": proposal,
                     "slot_status": slot["slot_status"],
                 }
@@ -440,19 +435,14 @@ class ModeNAConsensusManager:
         if any_no:
             is_mode_a = target_trip.get("mode") == "Mode A"
             if is_mode_a:
-                ai_result = self._trigger_mode_a_ai(target_prp, target_slot, target_trip, curr_time)
-                target_slot["admin_recommendation"] = ai_result
                 return {
                     "votes": recorded_votes,
-                    "status": "AWAITING_ADMIN_ACTION",
+                    "status": "VOTE_RECORDED",
                     "mode": "Mode A",
                     "message": (
-                        "Batch NO votes recorded in Mode A (Admin-Led). The 10-minute timer is NOT started. "
-                        "AI generated an advisory recommendation for the trip admin."
+                        "Batch votes recorded in Mode A (Admin-Led). A yes/no vote does NOT invoke AI consensus; "
+                        "only the admin can invoke AI consensus."
                     ),
-                    "advisory": True,
-                    "admin_recommendation": ai_result.get("admin_recommendation"),
-                    "advisory_result": ai_result,
                     "proposal": target_prp,
                     "slot_status": target_slot["slot_status"],
                 }
@@ -672,36 +662,156 @@ class ModeNAConsensusManager:
 
         return ai_output
 
+    def _is_admin(self, trip: Dict[str, Any], user_id: str) -> bool:
+        """Checks if user_id is authorized as trip admin."""
+        owner = trip.get("owner_id")
+        if not owner:
+            return True
+        if user_id == owner:
+            return True
+        # For default demo trips, allow panchami / panch or alice as recognized admins
+        if trip.get("trip_id") in ("trp_demo", "trp_bali_mode_a") and user_id in ("alice", "panch", "usr_panchami"):
+            return True
+        return False
+
     def invoke_mode_a_ai(
         self,
         itm_id: str,
         user_id: str,
         now: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        """Admin explicitly invokes AI reconciliation for a slot in Mode A."""
+        """
+        Admin explicitly invokes AI consensus for a slot in Mode A.
+        Gathers all previous proposals for this slot (base proposal + members' alternative proposals)
+        and all member objections/votes, synthesizes a compromise proposal, and opens it for voting.
+        """
         curr_time = now or datetime.now(timezone.utc)
         slot = self.itinerary_items.get(itm_id)
         if not slot:
             raise ValueError(f"Itinerary item {itm_id} not found")
 
         trip = self.trips[slot["trip_id"]]
-        owner_id = trip.get("owner_id")
-        if owner_id and user_id != owner_id:
-            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({owner_id})")
+        if not self._is_admin(trip, user_id):
+            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({trip.get('owner_id')})")
 
+        slot_proposals = [p for p in self.proposals.values() if p["itm_id"] == itm_id]
+        if not slot_proposals:
+            raise ValueError(f"No proposals found for slot {itm_id}")
+
+        # Determine base proposal (the slot's active proposal or first proposal)
         active_prp_id = slot.get("active_proposal_id")
-        proposal = self.proposals.get(active_prp_id)
-        if not proposal:
-            raise ValueError(f"No active proposal found for slot {itm_id}")
+        base_proposal = self.proposals.get(active_prp_id) or slot_proposals[0]
 
-        ai_result = self._trigger_mode_a_ai(proposal, slot, trip, curr_time, admin_action=None)
-        slot["admin_recommendation"] = ai_result
+        # Gather all alternative proposals created by members on this slot
+        alternative_proposals = [
+            {
+                "proposal_id": p["proposal_id"],
+                "title": p["title"],
+                "rationale": p["rationale"],
+                "proposed_by": p.get("proposed_by_user_id"),
+                "cost_delta": p.get("cost_delta", "0.00"),
+                "currency": p.get("currency", "USD"),
+                "votes": self.votes.get(p["proposal_id"], []),
+            }
+            for p in slot_proposals
+            if p["proposal_id"] != base_proposal["proposal_id"]
+        ]
+
+        # Gather all NO votes and objections across all proposals in this slot
+        all_no_votes = []
+        seen_comments = set()
+        for p in slot_proposals:
+            for v in self.votes.get(p["proposal_id"], []):
+                if v["value"] == "no" and v.get("comment") and not v["comment"].startswith("Retracted"):
+                    key = (v["user_id"], v["comment"])
+                    if key not in seen_comments:
+                        seen_comments.add(key)
+                        all_no_votes.append({
+                            "user_id": v["user_id"],
+                            "comment": v["comment"],
+                            "proposal_title": p.get("title"),
+                            "round": p.get("current_round", 1),
+                        })
+
+        trip_context = {
+            "destination_city": trip.get("destination_city", "Goa"),
+            "mode": "Mode A",
+            "members": trip.get("members", []),
+        }
+
+        ai_output = run_mode_a_round(
+            proposal=base_proposal,
+            no_votes=all_no_votes,
+            itinerary_item=slot,
+            trip_context=trip_context,
+            current_round=slot.get("current_round", 1),
+            admin_action=None,
+            alternative_proposals=alternative_proposals,
+        )
+
+        slot["admin_recommendation"] = ai_output
+        compromise_proposal = None
+
+        # When AI produces a blended plan, create a new compromise proposal on this slot for members to vote on
+        if ai_output.get("action") == "BLENDED" or "blended_plan" in ai_output:
+            blended = ai_output.get("blended_plan", ai_output)
+            next_round = slot.get("current_round", 1) + 1
+            new_prp_id = generate_id("prp")
+            compromise_proposal = {
+                "proposal_id": new_prp_id,
+                "parent_proposal_id": base_proposal["proposal_id"],
+                "superseded_by": None,
+                "itm_id": itm_id,
+                "trp_id": trip["trip_id"],
+                "proposed_by_user_id": "ai_consensus_agent",
+                "title": blended["title"],
+                "rationale": blended["rationale"],
+                "cost_delta": blended.get("cost_delta", "0.00"),
+                "currency": blended.get("currency", slot.get("currency", "USD")),
+                "entity_type": blended.get("entity_type", "poi"),
+                "entity_id": blended.get("entity_id", "poi_compromise"),
+                "closes_at": None,  # In Mode A, timer is not auto-closed
+                "status": "open",
+                "current_round": next_round,
+                "created_at": curr_time.isoformat(),
+                "resolved_at": None,
+            }
+            self.proposals[new_prp_id] = compromise_proposal
+            self.votes[new_prp_id] = []
+            slot["current_round"] = next_round
+            slot["active_proposal_id"] = new_prp_id
+
+            rev_id = generate_id("rev")
+            self.revision_history.setdefault(itm_id, []).append({
+                "rev_id": rev_id,
+                "itm_id": itm_id,
+                "proposal_id": new_prp_id,
+                "parent_proposal_id": base_proposal["proposal_id"],
+                "version_number": next_round,
+                "event_type": "AI_COMPROMISE_CREATED",
+                "title": blended["title"],
+                "rationale": blended["rationale"],
+                "proposed_by": "ai_consensus_agent",
+                "snapshot_data": blended,
+                "alternative_proposals_considered": [p["title"] for p in alternative_proposals],
+                "reconciled_from_votes": all_no_votes,
+                "created_at": curr_time.isoformat(),
+            })
+
         return {
             "status": "AI_RECOMMENDATION_READY",
+            "mode": "Mode A",
+            "message": (
+                f"AI Consensus synthesized a compromise plan from all proposal data: '{compromise_proposal['title']}'. "
+                f"Members can now vote on this proposal (Proposal ID: {compromise_proposal['proposal_id']})."
+                if compromise_proposal else "AI generated advisory recommendations for admin review."
+            ),
             "advisory": True,
-            "admin_recommendation": ai_result.get("admin_recommendation"),
-            "ai_result": ai_result,
-            "proposal": proposal,
+            "compromise_proposal": compromise_proposal,
+            "new_proposal_id_to_vote_on": compromise_proposal["proposal_id"] if compromise_proposal else None,
+            "admin_recommendation": ai_output.get("admin_recommendation"),
+            "ai_result": ai_output,
+            "proposals_evaluated": len(slot_proposals),
             "slot_status": slot["slot_status"],
         }
 
@@ -719,9 +829,8 @@ class ModeNAConsensusManager:
             raise ValueError(f"Itinerary item {itm_id} not found")
 
         trip = self.trips[slot["trip_id"]]
-        owner_id = trip.get("owner_id")
-        if owner_id and user_id != owner_id:
-            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({owner_id})")
+        if not self._is_admin(trip, user_id):
+            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({trip.get('owner_id')})")
 
         rec = slot.get("admin_recommendation")
 
@@ -812,9 +921,8 @@ class ModeNAConsensusManager:
             raise ValueError(f"Itinerary item {itm_id} not found")
 
         trip = self.trips[slot["trip_id"]]
-        owner_id = trip.get("owner_id")
-        if owner_id and user_id != owner_id:
-            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({owner_id})")
+        if not self._is_admin(trip, user_id):
+            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({trip.get('owner_id')})")
 
         active_prp_id = slot.get("active_proposal_id")
         proposal = self.proposals.get(active_prp_id)
@@ -853,9 +961,8 @@ class ModeNAConsensusManager:
             raise ValueError(f"Itinerary item {itm_id} not found")
 
         trip = self.trips[slot["trip_id"]]
-        owner_id = trip.get("owner_id")
-        if owner_id and user_id != owner_id:
-            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({owner_id})")
+        if not self._is_admin(trip, user_id):
+            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({trip.get('owner_id')})")
 
         active_prp_id = slot.get("active_proposal_id")
         proposal = self.proposals.get(active_prp_id)
@@ -892,9 +999,8 @@ class ModeNAConsensusManager:
             raise ValueError(f"Itinerary item {itm_id} not found")
 
         trip = self.trips[slot["trip_id"]]
-        owner_id = trip.get("owner_id")
-        if owner_id and user_id != owner_id:
-            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({owner_id})")
+        if not self._is_admin(trip, user_id):
+            raise PermissionError(f"User '{user_id}' is not the trip owner/admin ({trip.get('owner_id')})")
 
         target_prp_id = proposal_id or slot.get("active_proposal_id")
         target_prp = self.proposals.get(target_prp_id)
@@ -920,8 +1026,8 @@ class ModeNAConsensusManager:
         if not trip:
             raise ValueError(f"Trip {trp_id} not found")
 
-        if requesting_user_id and trip.get("owner_id") and requesting_user_id != trip["owner_id"]:
-            raise PermissionError(f"Only trip owner ({trip['owner_id']}) can change the trip mode")
+        if requesting_user_id and not self._is_admin(trip, requesting_user_id):
+            raise PermissionError(f"Only trip owner ({trip.get('owner_id')}) can change the trip mode")
 
         if mode not in ("Mode A", "Mode NA"):
             raise ValueError("Trip mode must be 'Mode A' or 'Mode NA'")
@@ -1077,6 +1183,56 @@ class ModeNAConsensusManager:
             "timeline": timeline,
             "revision_history": self.revision_history.get(itm_id, []),
             "branches": self.branches.get(itm_id, []),
+        }
+
+    def get_slot_proposals(self, itm_id: str) -> Dict[str, Any]:
+        """
+        Returns all proposals created for an itinerary slot (initial, alternatives, and AI compromises)
+        along with structured vote breakdowns (yes_count, no_count, yes_voters, no_voters).
+        """
+        slot = self.itinerary_items.get(itm_id)
+        if not slot:
+            raise ValueError(f"Itinerary item {itm_id} not found")
+
+        slot_proposals = [p for p in self.proposals.values() if p["itm_id"] == itm_id]
+        slot_proposals.sort(key=lambda p: (p.get("current_round", 1), p.get("created_at", "")))
+
+        proposals_data = []
+        for p in slot_proposals:
+            p_id = p["proposal_id"]
+            votes = self.votes.get(p_id, [])
+            yes_voters = [v["user_id"] for v in votes if v["value"] == "yes"]
+            no_voters = [v["user_id"] for v in votes if v["value"] == "no" and not v.get("comment", "").startswith("Retracted")]
+            proposals_data.append({
+                "proposal_id": p_id,
+                "parent_proposal_id": p.get("parent_proposal_id"),
+                "title": p["title"],
+                "rationale": p["rationale"],
+                "proposed_by": p.get("proposed_by_user_id"),
+                "status": p.get("status"),
+                "current_round": p.get("current_round", 1),
+                "closes_at": p.get("closes_at"),
+                "created_at": p.get("created_at"),
+                "resolved_at": p.get("resolved_at"),
+                "cost_delta": p.get("cost_delta", "0.00"),
+                "currency": p.get("currency", "USD"),
+                "votes_summary": {
+                    "yes_count": len(yes_voters),
+                    "no_count": len(no_voters),
+                    "yes_voters": yes_voters,
+                    "no_voters": no_voters,
+                },
+                "votes": votes,
+            })
+
+        return {
+            "item_id": itm_id,
+            "slot_title": slot["title"],
+            "slot_status": slot["slot_status"],
+            "active_proposal_id": slot.get("active_proposal_id"),
+            "current_round": slot.get("current_round", 1),
+            "proposals_count": len(proposals_data),
+            "proposals": proposals_data,
         }
 
 

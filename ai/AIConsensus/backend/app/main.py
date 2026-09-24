@@ -61,9 +61,9 @@ def _seed_demo_data():
         trip_id="trp_demo",
         title="Goa Friends Trip",
         destination_city="Goa",
-        members=["alice", "bob", "charlie", "david"],
+        members=["panch", "alice", "bob", "charlie", "david"],
         mode="Mode NA",
-        owner_id="alice",
+        owner_id="panch",
     )
     manager.create_itinerary_slot(
         item_id="itm_morning",
@@ -73,7 +73,7 @@ def _seed_demo_data():
     )
     manager.create_proposal(
         itm_id="itm_morning",
-        proposed_by_user_id="alice",
+        proposed_by_user_id="panch",
         title="Baga Beach Sunbathing",
         rationale="Relaxing on the sand and swimming in the Arabian Sea.",
     )
@@ -83,9 +83,9 @@ def _seed_demo_data():
         trip_id="trp_bali_mode_a",
         title="Bali Tropical Escape (Admin Mode)",
         destination_city="Bali",
-        members=["alice", "bob", "charlie", "david"],
+        members=["panch", "alice", "bob", "charlie", "david"],
         mode="Mode A",
-        owner_id="alice",
+        owner_id="panch",
     )
     manager.create_itinerary_slot(
         item_id="itm_bali_morning",
@@ -95,7 +95,7 @@ def _seed_demo_data():
     )
     manager.create_proposal(
         itm_id="itm_bali_morning",
-        proposed_by_user_id="alice",
+        proposed_by_user_id="panch",
         title="Uluwatu Cliffside Temple Tour",
         rationale="Historic oceanfront cliff temple visit and traditional dance.",
     )
@@ -168,35 +168,35 @@ class BatchVotesRequest(BaseModel):
 
 class ModeAInvokeRequest(BaseModel):
     itm_id: str = Field(default="itm_bali_morning", description="Itinerary slot ID")
-    user_id: str = Field(default="alice", description="Admin user ID (must be trip owner)")
+    user_id: str = Field(default="panch", description="Admin user ID (must be trip owner)")
 
 
 class ModeAAcceptRequest(BaseModel):
     itm_id: str = Field(default="itm_bali_morning", description="Itinerary slot ID")
-    user_id: str = Field(default="alice", description="Admin user ID (must be trip owner)")
+    user_id: str = Field(default="panch", description="Admin user ID (must be trip owner)")
     proposal_id: Optional[str] = Field(default=None, description="Optional specific proposal ID to accept")
 
 
 class ModeAForceBranchRequest(BaseModel):
     itm_id: str = Field(default="itm_bali_morning", description="Itinerary slot ID")
-    user_id: str = Field(default="alice", description="Admin user ID (must be trip owner)")
+    user_id: str = Field(default="panch", description="Admin user ID (must be trip owner)")
 
 
 class ModeAExtendRequest(BaseModel):
     itm_id: str = Field(default="itm_bali_morning", description="Itinerary slot ID")
-    user_id: str = Field(default="alice", description="Admin user ID (must be trip owner)")
+    user_id: str = Field(default="panch", description="Admin user ID (must be trip owner)")
     extend_minutes: Optional[int] = Field(default=15, description="Minutes to extend the voting window")
 
 
 class ModeADirectConfirmRequest(BaseModel):
     itm_id: str = Field(default="itm_bali_morning", description="Itinerary slot ID")
-    user_id: str = Field(default="alice", description="Admin user ID (must be trip owner)")
+    user_id: str = Field(default="panch", description="Admin user ID (must be trip owner)")
     proposal_id: Optional[str] = Field(default=None, description="Specific proposal ID to directly confirm")
 
 
 class UpdateTripModeRequest(BaseModel):
     mode: str = Field(default="Mode A", description="'Mode A' (Admin-Led) or 'Mode NA' (Collaborative)")
-    user_id: Optional[str] = Field(default="alice", description="User ID requesting mode change (must be owner)")
+    user_id: Optional[str] = Field(default="panch", description="User ID requesting mode change (must be owner)")
 
 
 class ReconcileRequest(BaseModel):
@@ -357,6 +357,18 @@ def get_active_proposal_for_slot(itm_id: str):
         "votes_count": len(votes),
         "votes": votes,
     }
+
+
+@app.get("/api/slots/{itm_id}/proposals", tags=["Proposals & Voting"])
+def get_slot_proposals(itm_id: str):
+    """
+    Returns all proposals for an itinerary slot (initial, member alternatives, and AI compromise proposals)
+    with full vote breakdowns and counts.
+    """
+    try:
+        return manager.get_slot_proposals(itm_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.get("/api/slots/{itm_id}/history", tags=["Proposals & Voting"])
