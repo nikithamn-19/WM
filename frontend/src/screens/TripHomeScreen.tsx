@@ -4,307 +4,427 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { useTripContext } from '../context/TripContext'
 import { ProposeActivityModal } from './ProposeActivityModal'
 
-export interface ItineraryItemData {
+export interface TimelineSlotItem {
   itmId: string
-  dayIndex: number
+  time: string
   title: string
-  status: 'confirmed' | 'proposed' | 'in_consensus' | 'branched'
-  type: string
-  cost: string
-  currency: string
-  duration: string
-  note?: string
+  status: 'CONFIRMED' | 'OPEN FOR DECISION' | 'RESOLVED FROM POLL' | 'UNASSIGNED'
+  description: string
+  cost?: string
+  currency?: string
+  type?: string
+  duration?: string
   isLocked?: boolean
+  note?: string
 }
 
 export const TripHomeScreen: React.FC = () => {
-  const { trpId = 'trp_b0a35602' } = useParams()
+  const { trpId = 'trp_goa_2026' } = useParams()
   const { addToast } = useTripContext()
 
+  // Active Day Tab
+  const [activeDay, setActiveDay] = useState<number>(1)
+
+  // Modal State
   const [isProposeOpen, setIsProposeOpen] = useState(false)
   const [activeSlotName, setActiveSlotName] = useState('New Activity Slot')
 
-  const [members] = useState([
-    { id: 'usr_02b3a36d', role: 'editor' },
-    { id: 'usr_33d905c7', role: 'editor' },
-    { id: 'usr_8ed02105', role: 'owner' },
-  ])
+  // Stats drawer toggle (optional info from Image 1)
+  const [showStats, setShowStats] = useState(false)
 
-  const [day1Items, setDay1Items] = useState<ItineraryItemData[]>([
+  // Day 1 Items (Matches Image 2 & 3 + Image 1 debate functionalities)
+  const [day1Items, setDay1Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_b94582f9',
-      dayIndex: 1,
-      title: 'The Verandah Heritage',
-      status: 'confirmed',
-      type: 'Hotel',
-      cost: '5000.00',
-      currency: 'INR',
-      duration: '0m',
-      isLocked: false,
+      time: '09:00',
+      title: 'Breakfast at Artjuna',
+      status: 'CONFIRMED',
+      description: 'Gather the crew for coffee and croissants before heading out.',
+      cost: '800.00',
+      currency: '₹',
+      type: 'Dining / Breakfast',
+      duration: '60m',
+      isLocked: true,
     },
     {
       itmId: 'itm_02',
-      dayIndex: 1,
-      title: 'Watchtower Terrace',
-      status: 'proposed',
-      type: 'Poi',
+      time: '12:00',
+      title: 'Afternoon Activity',
+      status: 'OPEN FOR DECISION',
+      description: 'The group is currently reviewing activity options for this time slot.',
       cost: '200.00',
-      currency: 'INR',
+      currency: '₹',
+      type: 'Poi / Sightseeing',
       duration: '75m',
-      isLocked: false,
     },
     {
       itmId: 'itm_03',
-      dayIndex: 1,
-      title: 'Backwater Channel',
-      status: 'proposed',
-      type: 'Poi',
-      cost: '50.00',
-      currency: 'INR',
+      time: '15:00',
+      title: 'Candolim Beach + Fort Aguada',
+      status: 'RESOLVED FROM POLL',
+      description: 'Relax at Candolim before visiting Fort Aguada in the afternoon.',
+      cost: '200.00',
+      currency: '₹',
+      type: 'Poi / Beach',
       duration: '180m',
-      isLocked: false,
+    },
+    {
+      itmId: 'itm_empty_1',
+      time: '19:00',
+      title: 'No activity planned yet',
+      status: 'UNASSIGNED',
+      description: 'No activity planned yet for this slot.',
     },
   ])
 
-  const [day2Items, setDay2Items] = useState<ItineraryItemData[]>([
+  // Day 2 Items
+  const [day2Items, setDay2Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_04',
-      dayIndex: 2,
-      title: 'Tea Estate Trail',
-      status: 'confirmed',
-      type: 'Poi',
+      time: '09:30',
+      title: 'Tea Estate Trail & Nature Walk',
+      status: 'CONFIRMED',
+      description: 'Matches the budget style you described; slotted early to avoid crowds.',
       cost: '500.00',
-      currency: 'INR',
+      currency: '₹',
+      type: 'Poi / Nature',
       duration: '180m',
-      note: 'Matches the budget style you described; slotted early to avoid crowds.',
       isLocked: true,
+      note: 'Slotted early to avoid peak mid-day heat.',
+    },
+    {
+      itmId: 'itm_05',
+      time: '14:00',
+      title: 'Kayaking in Sal River Backwaters',
+      status: 'OPEN FOR DECISION',
+      description: 'Explore scenic mangrove channels and coastal bird sanctuaries with local guide.',
+      cost: '1200.00',
+      currency: '₹',
+      type: 'Activity / Adventure',
+      duration: '120m',
+    },
+    {
+      itmId: 'itm_06',
+      time: '18:30',
+      title: 'Sunset Cruise & Beach Shack Dinner',
+      status: 'RESOLVED FROM POLL',
+      description: 'Relaxing catamaran cruise along North Goa coastline followed by seafood dinner.',
+      cost: '600.00',
+      currency: '₹',
+      type: 'Dining & Leisure',
+      duration: '150m',
+    },
+    {
+      itmId: 'itm_empty_2',
+      time: '21:30',
+      title: 'No activity planned yet',
+      status: 'UNASSIGNED',
+      description: 'No activity planned yet for this slot.',
     },
   ])
 
-  const handleConfirmItem = (itmId: string, day: 1 | 2) => {
-    if (day === 1) {
-      setDay1Items((prev) =>
-        prev.map((it) => (it.itmId === itmId ? { ...it, status: 'confirmed' } : it))
-      )
-    } else {
-      setDay2Items((prev) =>
-        prev.map((it) => (it.itmId === itmId ? { ...it, status: 'confirmed' } : it))
-      )
+  // Day 3 Items
+  const [day3Items, setDay3Items] = useState<TimelineSlotItem[]>([
+    {
+      itmId: 'itm_07',
+      time: '10:00',
+      title: 'Old Goa Heritage Basilica & Spice Trail',
+      status: 'CONFIRMED',
+      description: 'Guided tour of historical Portuguese churches and organic spice plantations.',
+      cost: '450.00',
+      currency: '₹',
+      type: 'Culture & Heritage',
+      duration: '180m',
+      isLocked: true,
+    },
+    {
+      itmId: 'itm_08',
+      time: '15:30',
+      title: 'Anjuna Flea Market & Local Crafts',
+      status: 'OPEN FOR DECISION',
+      description: 'Vibrant seaside market for handcrafted souvenirs, live music, and street food.',
+      cost: '300.00',
+      currency: '₹',
+      type: 'Shopping & Market',
+      duration: '120m',
+    },
+    {
+      itmId: 'itm_09',
+      time: '19:30',
+      title: 'Farewell Dinner at Thalassa Waterfront',
+      status: 'CONFIRMED',
+      description: 'Celebratory Greek dinner overlooking Ozran Beach cliffside.',
+      cost: '1500.00',
+      currency: '₹',
+      type: 'Dining',
+      duration: '120m',
+    },
+  ])
+
+  // Get active items for current day
+  const currentItems = activeDay === 1 ? day1Items : activeDay === 2 ? day2Items : day3Items
+
+  // Confirm slot handler
+  const handleConfirmItem = (itmId: string) => {
+    const updater = (prev: TimelineSlotItem[]) =>
+      prev.map((it) => (it.itmId === itmId ? { ...it, status: 'CONFIRMED' as const } : it))
+
+    if (activeDay === 1) setDay1Items(updater)
+    else if (activeDay === 2) setDay2Items(updater)
+    else setDay3Items(updater)
+
+    addToast('Activity confirmed and locked into itinerary!', 'success')
+  }
+
+  // Helper for status badge styling
+  const renderStatusBadge = (status: TimelineSlotItem['status']) => {
+    switch (status) {
+      case 'CONFIRMED':
+        return (
+          <span className="bg-amber-100 text-amber-900 border border-amber-300 font-mono text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full shrink-0">
+            CONFIRMED
+          </span>
+        )
+      case 'OPEN FOR DECISION':
+        return (
+          <span className="bg-blue-100 text-blue-900 border border-blue-300 font-mono text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full shrink-0">
+            OPEN FOR DECISION
+          </span>
+        )
+      case 'RESOLVED FROM POLL':
+        return (
+          <span className="bg-purple-100 text-purple-900 border border-purple-300 font-mono text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full shrink-0">
+            RESOLVED FROM POLL
+          </span>
+        )
+      default:
+        return null
     }
-    addToast('Slot confirmed and locked into itinerary!', 'success')
   }
 
   return (
-    <PageWrapper trpId={trpId} tripTitle="Trip Workspace">
-      <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-16">
-        {/* Trip Members Card (Matching Photo 1) */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-gray-700">Trip Members:</span>
-            {members.map((m) => (
-              <span
-                key={m.id}
-                className={`text-xs font-mono px-2.5 py-0.5 rounded border ${
-                  m.role === 'owner'
-                    ? 'bg-purple-50 text-purple-700 border-purple-200 font-semibold'
-                    : 'bg-gray-50 text-gray-700 border-gray-200'
-                }`}
-              >
-                {m.id} <span className="text-[10px] text-gray-500">({m.role})</span>
-              </span>
-            ))}
+    <PageWrapper trpId={trpId} tripTitle="Goa Getaway">
+      <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-20">
+        {/* 1. Governance & Role Sub-Banner (Matches Image 2 & 3) */}
+        <div className="bg-card border border-slate-light rounded-xl px-5 py-3 flex flex-wrap items-center justify-between shadow-xs gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-slate font-medium">Governance Mode:</span>
+            <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-0.5 rounded-full text-xs font-mono font-medium">
+              Mode A (Admin-Led: Owner Decides)
+            </span>
           </div>
 
-          <span className="text-[11px] font-sans text-gray-500">
-            Share weights: 1.000 (PS-11 largest-remainder split ready)
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-xs text-slate font-medium">
+              Role: <strong className="text-ink font-semibold">Owner (Admin)</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowStats(!showStats)}
+              className="text-xs font-mono text-route hover:underline"
+            >
+              {showStats ? 'Hide Stats ▲' : 'Trip Stats ▼'}
+            </button>
+          </div>
         </div>
 
-        {/* 3 Stats Boxes (Matching Photo 1) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Card 1: Estimated Total Cost */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs flex flex-col justify-between">
-            <span className="text-xs font-semibold text-gray-500">Estimated Total Cost</span>
-            <span className="text-2xl font-bold text-gray-900 mt-2 font-mono">
-              INR 8450.00
-            </span>
-          </div>
-
-          {/* Card 2: Carbon Footprint */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs flex flex-col justify-between">
-            <span className="text-xs font-semibold text-gray-500">Carbon Footprint</span>
-            <span className="text-2xl font-bold text-emerald-600 mt-2 font-mono flex items-baseline gap-1">
-              <span>6.5</span>
-              <span className="text-sm font-semibold text-emerald-700">kg CO₂</span>
-            </span>
-          </div>
-
-          {/* Card 3: Itinerary Generator */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs flex flex-col justify-between">
-            <span className="text-xs font-semibold text-gray-500">Itinerary Generator</span>
-            <div className="flex items-center gap-1.5 text-purple-700 font-bold text-base mt-2">
-              <span>🪄</span>
-              <span>User</span>
+        {/* Collapsible Stats Box from Image 1 (Total Cost, Carbon, Members) */}
+        {showStats && (
+          <div className="bg-card border border-slate-light rounded-xl p-4 shadow-xs grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-200">
+            <div className="flex flex-col">
+              <span className="text-[11px] font-mono uppercase text-slate">Estimated Total Cost</span>
+              <span className="text-xl font-mono font-bold text-ink mt-0.5">INR 8,450.00</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-mono uppercase text-slate">Carbon Footprint</span>
+              <span className="text-xl font-mono font-bold text-emerald-700 mt-0.5">6.5 kg CO₂</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-mono uppercase text-slate">Trip Members</span>
+              <span className="text-xs font-mono text-ink mt-1">usr_02b (editor) · usr_33d · Nikitha (owner)</span>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Section Title & Action Button (Matching Photo 1) */}
-        <div className="flex items-center justify-between pt-2">
-          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
-            Day-by-Day Shared Itinerary
-          </h2>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveSlotName('New Activity Slot')
-              setIsProposeOpen(true)
-            }}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
-          >
-            <span>+</span>
-            <span>Add Activity Slot</span>
-          </button>
-        </div>
+        {/* 2. Trip Title & Dates Header (Centered, Matches Image 2 & 3) */}
+        <div className="flex flex-col items-center justify-center text-center gap-1 pt-2">
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink tracking-tight">
+            Goa Getaway
+          </h1>
+          <p className="font-mono text-xs text-slate">
+            June 12–15 · 6 members
+          </p>
 
-        {/* Day 1 Section (Matching Photo 1) */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50/50">
-            <h3 className="font-bold text-sm text-gray-900">Day 1</h3>
+          {/* 3. Day Selector Pills (Centered Horizontal Tabs) */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mt-4">
             <button
               type="button"
-              onClick={() => {
-                setActiveSlotName('Day 1 Activity Slot')
-                setIsProposeOpen(true)
-              }}
-              className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
+              onClick={() => setActiveDay(1)}
+              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all ${
+                activeDay === 1
+                  ? 'bg-route text-card font-semibold shadow-xs'
+                  : 'text-slate hover:text-ink font-medium hover:bg-paper'
+              }`}
             >
-              <span>+</span>
-              <span>Add to Day 1</span>
+              Day 1: Arrival
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveDay(2)}
+              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all ${
+                activeDay === 2
+                  ? 'bg-route text-card font-semibold shadow-xs'
+                  : 'text-slate hover:text-ink font-medium hover:bg-paper'
+              }`}
+            >
+              Day 2: Beach
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveDay(3)}
+              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all ${
+                activeDay === 3
+                  ? 'bg-route text-card font-semibold shadow-xs'
+                  : 'text-slate hover:text-ink font-medium hover:bg-paper'
+              }`}
+            >
+              Day 3: Explore
             </button>
           </div>
+        </div>
 
-          <div className="divide-y divide-gray-100">
-            {day1Items.map((item) => (
-              <div
-                key={item.itmId}
-                className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/40 transition-colors"
-              >
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-sm text-gray-900">{item.title}</h4>
-                    <span
-                      className={`text-[10px] font-medium px-2 py-0.2 rounded-full border ${
-                        item.status === 'confirmed'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                    {item.isLocked && <span className="text-xs text-amber-600">🔒</span>}
-                  </div>
-                  <p className="text-xs text-gray-500 font-sans">
-                    Type: {item.type} · Cost: {item.currency} {item.cost} · Duration: {item.duration}
-                  </p>
+        {/* 4. Timeline View Container (Matches Image 2 & 3 Layout) */}
+        <div className="flex flex-col mt-4">
+          {currentItems.map((slot, idx) => {
+            const isLast = idx === currentItems.length - 1
+            const isUnassigned = slot.status === 'UNASSIGNED'
+
+            return (
+              <div key={slot.itmId} className="flex items-stretch gap-3 sm:gap-4 relative group">
+                {/* Time Label (Left) */}
+                <div className="w-12 sm:w-14 text-right shrink-0 pt-6">
+                  <span className="font-mono text-xs font-bold text-slate">
+                    {slot.time}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  {item.status === 'proposed' && (
-                    <button
-                      type="button"
-                      onClick={() => handleConfirmItem(item.itmId, 1)}
-                      className="text-xs font-semibold text-emerald-700 hover:bg-emerald-50 border border-emerald-300 rounded px-2.5 py-1 flex items-center gap-1 transition-colors"
-                    >
-                      <span>✓</span>
-                      <span>Confirm</span>
-                    </button>
+                {/* Timeline Axis & Dot */}
+                <div className="relative flex flex-col items-center shrink-0 w-4">
+                  {/* Timeline Dot */}
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#1b4332] border-2 border-paper z-10 mt-[26px] shadow-2xs group-hover:scale-125 transition-transform" />
+                  {/* Vertical Line */}
+                  {!isLast && (
+                    <div className="w-[1.5px] bg-slate-light/90 flex-1 my-1" />
                   )}
-
-                  {/* Click to open debate in Photo 2 */}
-                  <Link
-                    to={`/trips/${trpId}/slots/${item.itmId}`}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
-                  >
-                    <span>View Debate</span>
-                    <span>&gt;</span>
-                  </Link>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Day 2 Section (Matching Photo 1) */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50/50">
-            <h3 className="font-bold text-sm text-gray-900">Day 2</h3>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveSlotName('Day 2 Activity Slot')
-                setIsProposeOpen(true)
-              }}
-              className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
-            >
-              <span>+</span>
-              <span>Add to Day 2</span>
-            </button>
-          </div>
+                {/* Timeline Card (Right, Matches Image 2 & 3) */}
+                <div className="bg-card border border-slate-light rounded-[12px] p-5 sm:p-6 shadow-xs flex-1 flex flex-col justify-between gap-3 mb-5 hover:border-route/60 transition-all">
+                  <div className="flex flex-col gap-2">
+                    {/* Card Header: Title + Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-serif text-lg font-bold text-ink">
+                          {slot.title}
+                        </h3>
+                        {slot.isLocked && (
+                          <span className="text-xs text-amber-600" title="Locked by Admin">
+                            🔒
+                          </span>
+                        )}
+                      </div>
+                      {renderStatusBadge(slot.status)}
+                    </div>
 
-          <div className="divide-y divide-gray-100">
-            {day2Items.map((item) => (
-              <div
-                key={item.itmId}
-                className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/40 transition-colors"
-              >
-                <div className="flex flex-col gap-1 max-w-2xl">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-sm text-gray-900">{item.title}</h4>
-                    <span className="text-[10px] font-medium px-2 py-0.2 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-                      {item.status}
-                    </span>
-                    {item.isLocked && <span className="text-xs text-amber-600">🔒</span>}
-                  </div>
-                  <p className="text-xs text-gray-500 font-sans">
-                    Type: {item.type} · Cost: {item.currency} {item.cost} · Duration: {item.duration}
-                  </p>
-                  {item.note && (
-                    <p className="text-xs text-gray-500 italic mt-0.5">
-                      "{item.note}"
+                    {/* Subtitle / Description */}
+                    <p className="font-sans text-xs text-slate leading-relaxed">
+                      {slot.description}
+                      {slot.cost && (
+                        <span className="font-mono font-medium text-ink/80 ml-1.5">
+                          • {slot.currency} {slot.cost}
+                        </span>
+                      )}
                     </p>
-                  )}
-                </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <Link
-                    to={`/trips/${trpId}/slots/${item.itmId}`}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
-                  >
-                    <span>View Debate</span>
-                    <span>&gt;</span>
-                  </Link>
+                    {/* Meta Type & Duration if available */}
+                    {slot.type && (
+                      <p className="font-mono text-[11px] text-slate/80">
+                        Type: {slot.type} {slot.duration ? `· Duration: ${slot.duration}` : ''}
+                      </p>
+                    )}
+
+                    {slot.note && (
+                      <p className="font-sans text-xs text-slate italic bg-paper p-2 rounded border border-slate-light/50">
+                        "{slot.note}"
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Card Actions (Preserving Debate & Confirm Functionalities) */}
+                  <div className="flex items-center justify-between pt-1">
+                    {isUnassigned ? (
+                      /* Empty slot action */
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSlotName(`Day ${activeDay} - ${slot.time} Slot`)
+                          setIsProposeOpen(true)
+                        }}
+                        className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
+                      >
+                        <span>+ Explore options in Propose &amp; Resolve</span>
+                      </button>
+                    ) : slot.status === 'OPEN FOR DECISION' ? (
+                      /* Open for decision: Go to Propose & Resolve button + Confirm option */
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <Link
+                          to={`/trips/${trpId}/slots/${slot.itmId}`}
+                          className="bg-route text-card font-sans font-semibold text-xs px-4 py-2 rounded-[8px] hover:opacity-95 shadow-xs transition-all flex items-center gap-1.5"
+                        >
+                          <span>Go to Propose &amp; Resolve</span>
+                          <span>&rarr;</span>
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmItem(slot.itmId)}
+                          className="border border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-semibold px-3 py-1.5 rounded-[8px] transition-colors flex items-center gap-1"
+                        >
+                          <span>✓</span>
+                          <span>Confirm</span>
+                        </button>
+                      </div>
+                    ) : (
+                      /* Confirmed / Resolved: View Debate link */
+                      <div className="flex items-center justify-end w-full">
+                        <Link
+                          to={`/trips/${trpId}/slots/${slot.itmId}`}
+                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
+                        >
+                          <span>View Debate</span>
+                          <span>&rarr;</span>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
 
-        {/* Propose Activity Modal Triggered */}
+        {/* Modal for Proposing / Adding New Activity Slot */}
         <ProposeActivityModal
           isOpen={isProposeOpen}
           onClose={() => setIsProposeOpen(false)}
           trpId={trpId}
           slotTime={activeSlotName}
           onSuccess={() => {
-            addToast('New activity slot submitted!', 'success')
+            addToast('New activity slot submitted for group review!', 'success')
           }}
         />
-
-        {/* Footer */}
-        <footer className="text-center text-xs text-gray-400 mt-10 pt-4 border-t border-gray-200">
-          WanderMatch · KogniVera Hackathon 2026 · PS-11 Real Architecture
-        </footer>
       </div>
     </PageWrapper>
   )
