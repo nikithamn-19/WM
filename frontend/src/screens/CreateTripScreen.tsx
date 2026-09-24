@@ -13,7 +13,6 @@ export const CreateTripScreen: React.FC = () => {
   const [destination, setDestination] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [partySize, setPartySize] = useState('4')
   const [mode, setMode] = useState<'Mode A' | 'Mode NA'>('Mode NA')
   const [notes, setNotes] = useState('')
   const [dateError, setDateError] = useState('')
@@ -72,15 +71,6 @@ export const CreateTripScreen: React.FC = () => {
               error={dateError}
             />
           </div>
-
-          <Input
-            label="Party Size"
-            type="number"
-            value={partySize}
-            onChange={(e) => setPartySize(e.target.value)}
-            required
-            min="1"
-          />
 
           {/* Mode Selector */}
           <div className="flex flex-col gap-1.5">
