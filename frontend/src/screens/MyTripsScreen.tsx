@@ -122,7 +122,7 @@ export const MyTripsScreen: React.FC = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="secondary"
-              onClick={() => navigate('/solo-or-group')}
+              onClick={() => navigate('/solo-matches')}
               className="text-xs px-3.5 py-1.5 min-h-[36px]"
             >
               Discover Trips
