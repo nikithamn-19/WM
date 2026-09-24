@@ -113,7 +113,7 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
 
         <Link
           to="/profile"
-          title="Account / Profile"
+          title="User Account"
           className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-paper border text-xs font-mono text-ink transition-all ${
             location.pathname === '/profile'
               ? 'border-route ring-1 ring-route/30'
