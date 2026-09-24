@@ -203,7 +203,7 @@ export const MyTripsScreen: React.FC = () => {
                     </div>
 
                     <span className="text-route font-bold group-hover:translate-x-0.5 transition-transform">
-                      Workspace &rarr;
+                      {trip.status === 'Draft' || trip.status === 'draft' ? 'Edit Draft \u2192' : 'Workspace \u2192'}
                     </span>
                   </div>
                 </div>

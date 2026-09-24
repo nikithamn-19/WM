@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useTripContext } from '../context/TripContext'
-import { apiFetch } from '../lib/api'
+import { useAuthContext } from '../context/AuthContext'
+import { apiFetch, getTrip } from '../lib/api'
 import { Shield, Users, Plus, Trash2, Check, ChevronDown, ChevronUp, Compass } from 'lucide-react'
 
 export interface ItineraryItemDraft {
@@ -23,7 +24,11 @@ export interface ItineraryItemDraft {
 
 export const CreateTripScreen: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const editTrpId = searchParams.get('trpId')
+
   const { addToast } = useTripContext()
+  const { getToken } = useAuthContext()
 
   // Phase Step: 1 = Shell Creation, 2 = Itinerary Builder
   const [phase, setPhase] = useState<1 | 2>(1)
@@ -60,48 +65,45 @@ export const CreateTripScreen: React.FC = () => {
   // Phase 2 Form State
   const [days, setDays] = useState<number[]>([1, 2, 3, 4])
   const [activeDay, setActiveDay] = useState<number>(1)
-  const [items, setItems] = useState<ItineraryItemDraft[]>([
-    {
-      id: 'item_1',
-      dayIndex: 1,
-      sortOrder: 1,
-      startsAt: '09:00',
-      endsAt: '11:30',
-      title: 'Arrival & Resort Check-in',
-      description: 'Check in at resort, refresh and unpack',
-      entityType: 'hotel',
-      cost: '0.00',
-      currency: 'INR',
-      isExpanded: false,
-    },
-    {
-      id: 'item_2',
-      dayIndex: 1,
-      sortOrder: 2,
-      startsAt: '13:00',
-      endsAt: '15:00',
-      title: 'Beach Shack Seafood Lunch',
-      description: 'Enjoy fresh coastal delicacies by Candolim beach',
-      entityType: 'meal',
-      cost: '1200.00',
-      currency: 'INR',
-      isExpanded: false,
-    },
-    {
-      id: 'item_3',
-      dayIndex: 2,
-      sortOrder: 1,
-      startsAt: '10:00',
-      endsAt: '16:00',
-      title: 'Dudhsagar Waterfalls Jeep Safari',
-      description: 'Full day jungle trek and jeep ride',
-      entityType: 'tour',
-      cost: '2500.00',
-      currency: 'INR',
-      isExpanded: false,
-    },
-  ])
+  const [items, setItems] = useState<ItineraryItemDraft[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Load existing draft if trpId param present
+  useEffect(() => {
+    if (!editTrpId) return
+    getTrip(editTrpId, getToken).then((t) => {
+      if (!t) return
+      setTitle(t.title || '')
+      setDestinationCity(t.destinationCityId || 'Goa')
+      if (t.startDate) setStartDate(t.startDate)
+      if (t.endDate) setEndDate(t.endDate)
+      if (t.partySize) setPartySize(t.partySize)
+      if (t.mode) setMode(t.mode as any)
+      if (t.visibility) setVisibility(t.visibility as any)
+      if (t.notes) setNotes(t.notes)
+      setCreatedTrpId(t.trpId)
+      const calculatedDays = computeDaysArray(t.startDate, t.endDate)
+      setDays(calculatedDays)
+      
+      const existingItems = t.itinerary?.items || t.items || []
+      if (existingItems.length > 0) {
+        setItems(existingItems.map((item: any) => ({
+          id: item.itmId || `item_${Date.now()}_${Math.random()}`,
+          dayIndex: item.dayIndex || 1,
+          sortOrder: item.sortOrder || 1,
+          startsAt: item.startsAt || '09:00',
+          endsAt: item.endsAt || '11:00',
+          title: item.title || 'Activity',
+          description: item.description || '',
+          entityType: item.entityType || 'poi',
+          cost: item.cost || '0.00',
+          currency: item.currency || 'INR',
+          isExpanded: false
+        })))
+      }
+      setPhase(2)
+    }).catch(() => null)
+  }, [editTrpId, getToken])
 
   // Phase 1 Submit
   const handlePhase1Submit = async (saveAsDraft: boolean) => {
@@ -115,20 +117,24 @@ export const CreateTripScreen: React.FC = () => {
       setDays(calculatedDays)
       setActiveDay(1)
 
-      const res = await apiFetch('/api/trips', {
-        method: 'POST',
-        body: JSON.stringify({
-          title,
-          destinationCityId: destinationCity,
-          startDate,
-          endDate,
-          partySize,
-          mode,
-          visibility,
-          notes: notes.trim() || null,
-          saveAsDraft,
-        }),
-      })
+      const res = await apiFetch(
+        '/api/trips',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            title,
+            destinationCityId: destinationCity,
+            startDate,
+            endDate,
+            partySize,
+            mode,
+            visibility,
+            notes: notes.trim() || null,
+            saveAsDraft,
+          }),
+        },
+        getToken
+      )
 
       setCreatedTrpId(res.trpId)
       if (res.itinerary?.version) {
@@ -149,17 +155,55 @@ export const CreateTripScreen: React.FC = () => {
     }
   }
 
+  // Helper to check for overlapping time intervals
+  const checkTimeOverlap = (s1: string, e1: string, s2: string, e2: string): boolean => {
+    if (!s1 || !e1 || !s2 || !e2) return false
+    const toMins = (t: string) => {
+      const parts = t.split(':').map(Number)
+      return (parts[0] || 0) * 60 + (parts[1] || 0)
+    }
+    const start1 = toMins(s1)
+    const end1 = toMins(e1)
+    const start2 = toMins(s2)
+    const end2 = toMins(e2)
+    return Math.max(start1, start2) < Math.min(end1, end2)
+  }
+
   // Phase 2 Item Manipulation
   const handleAddSlot = (dayIdx: number) => {
     const dayItems = items.filter((i) => i.dayIndex === dayIdx)
+    let newStarts = '16:00'
+    let newEnds = '18:00'
+
+    if (dayItems.length > 0) {
+      const lastEnds = dayItems[dayItems.length - 1].endsAt || '16:00'
+      const [h] = lastEnds.split(':').map(Number)
+      const nextH = Math.min(22, (h || 16))
+      newStarts = `${nextH.toString().padStart(2, '0')}:00`
+      newEnds = `${Math.min(23, nextH + 2).toString().padStart(2, '0')}:00`
+    }
+
+    const conflicting = dayItems.find((other) =>
+      checkTimeOverlap(newStarts, newEnds, other.startsAt, other.endsAt)
+    )
+
+    if (conflicting && mode === 'Mode NA') {
+      const confirmProposal = window.confirm(
+        `⚠️ Time Clash Detected!\n\nSlot ${newStarts}–${newEnds} clashes with "${conflicting.title}" (${conflicting.startsAt}–${conflicting.endsAt}).\n\nIn Mode NA (No Admin), clashing activities cannot be added directly to the master plan.\n\nWould you like to submit this activity as a PROPOSAL for group voting instead?`
+      )
+      if (confirmProposal) {
+        addToast('Activity converted to proposal pipeline for group voting!', 'info')
+      }
+    }
+
     const newSlot: ItineraryItemDraft = {
       id: `item_${Date.now()}`,
       dayIndex: dayIdx,
       sortOrder: dayItems.length + 1,
-      startsAt: '16:00',
-      endsAt: '18:00',
-      title: 'New Activity',
-      description: '',
+      startsAt: newStarts,
+      endsAt: newEnds,
+      title: conflicting ? 'Proposed Alternative Activity' : 'New Activity',
+      description: conflicting ? `Proposed for consensus due to time clash with ${conflicting.title}` : '',
       entityType: 'poi',
       cost: '0.00',
       currency: 'INR',
@@ -175,9 +219,31 @@ export const CreateTripScreen: React.FC = () => {
   }
 
   const handleUpdateSlot = (id: string, field: keyof ItineraryItemDraft, value: any) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    )
+    setItems((prev) => {
+      const updated = prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      const targetItem = updated.find((i) => i.id === id)
+
+      if (targetItem && (field === 'startsAt' || field === 'endsAt')) {
+        const conflicting = updated.find(
+          (other) =>
+            other.id !== targetItem.id &&
+            other.dayIndex === targetItem.dayIndex &&
+            checkTimeOverlap(targetItem.startsAt, targetItem.endsAt, other.startsAt, other.endsAt)
+        )
+
+        if (conflicting && mode === 'Mode NA') {
+          setTimeout(() => {
+            const confirmProposal = window.confirm(
+              `⚠️ Time Clash Detected!\n\nActivity "${targetItem.title}" (${targetItem.startsAt}–${targetItem.endsAt}) clashes with "${conflicting.title}" (${conflicting.startsAt}–${conflicting.endsAt}).\n\nIn Mode NA (No Admin), clashing activities cannot be added directly to the master plan.\n\nWould you like to submit "${targetItem.title}" as a PROPOSAL for group voting?`
+            )
+            if (confirmProposal) {
+              addToast(`Submitted "${targetItem.title}" as a proposal for group consensus!`, 'info')
+            }
+          }, 100)
+        }
+      }
+      return updated
+    })
   }
 
   const handleDeleteSlot = (id: string) => {
@@ -212,24 +278,28 @@ export const CreateTripScreen: React.FC = () => {
     }
     setIsSubmitting(true)
     try {
-      const res = await apiFetch(`/api/trips/${createdTrpId}/itinerary`, {
-        method: 'POST',
-        body: JSON.stringify({
-          expectedVersion,
-          items: items.map((item) => ({
-            dayIndex: item.dayIndex,
-            sortOrder: item.sortOrder,
-            startsAt: item.startsAt,
-            endsAt: item.endsAt,
-            title: item.title,
-            description: item.description,
-            entityType: item.entityType,
-            entityId: null,
-            cost: item.cost || '0.00',
-            currency: item.currency || 'INR',
-          })),
-        }),
-      })
+      const res = await apiFetch(
+        `/api/trips/${createdTrpId}/itinerary`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            expectedVersion,
+            items: items.map((item) => ({
+              dayIndex: item.dayIndex,
+              sortOrder: item.sortOrder,
+              startsAt: item.startsAt,
+              endsAt: item.endsAt,
+              title: item.title,
+              description: item.description,
+              entityType: item.entityType,
+              entityId: null,
+              cost: item.cost || '0.00',
+              currency: item.currency || 'INR',
+            })),
+          }),
+        },
+        getToken
+      )
 
       if (saveAsDraft) {
         addToast(`Itinerary saved as draft! Visible on dashboard.`, 'success')
@@ -506,109 +576,125 @@ export const CreateTripScreen: React.FC = () => {
 
             {/* Slot Rows for Active Day */}
             <div className="flex flex-col gap-3">
-              {items
-                .filter((item) => item.dayIndex === activeDay)
-                .map((item) => {
-                  const durationStr = computeDuration(item.startsAt, item.endsAt)
-                  return (
-                    <div key={item.id} className="border border-slate-light rounded-[10px] p-3 bg-paper/40 flex flex-col gap-3">
-                      {/* Compact One-Line Slot Row: [Start] [End] [Title] [+] [Delete] */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <input
-                            type="time"
-                            value={item.startsAt}
-                            onChange={(e) => handleUpdateSlot(item.id, 'startsAt', e.target.value)}
-                            className="bg-paper border border-slate-light rounded-[6px] px-2 py-1 font-mono text-xs text-ink outline-none focus:border-route w-20"
-                          />
-                          <span className="font-mono text-xs text-slate">&ndash;</span>
-                          <input
-                            type="time"
-                            value={item.endsAt}
-                            onChange={(e) => handleUpdateSlot(item.id, 'endsAt', e.target.value)}
-                            className="bg-paper border border-slate-light rounded-[6px] px-2 py-1 font-mono text-xs text-ink outline-none focus:border-route w-20"
-                          />
+              {items.filter((item) => item.dayIndex === activeDay).length === 0 ? (
+                <div className="p-8 border border-dashed border-slate-light rounded-[10px] text-center flex flex-col items-center justify-center gap-2 bg-paper/20 my-2">
+                  <span className="font-serif font-bold text-ink text-sm">No activities planned yet for Day {activeDay}</span>
+                  <p className="font-sans text-xs text-slate max-w-xs">
+                    Click "+ Add Time Slot" below to start planning time slots for Day {activeDay}.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => handleAddSlot(activeDay)}
+                    className="mt-1 text-xs py-2 px-4"
+                  >
+                    + Add Time Slot for Day {activeDay}
+                  </Button>
+                </div>
+              ) : (
+                items
+                  .filter((item) => item.dayIndex === activeDay)
+                  .map((item) => {
+                    const durationStr = computeDuration(item.startsAt, item.endsAt)
+                    return (
+                      <div key={item.id} className="border border-slate-light rounded-[10px] p-3 bg-paper/40 flex flex-col gap-3">
+                        {/* Compact One-Line Slot Row: [Start] [End] [Title] [+] [Delete] */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <input
+                              type="time"
+                              value={item.startsAt}
+                              onChange={(e) => handleUpdateSlot(item.id, 'startsAt', e.target.value)}
+                              className="bg-paper border border-slate-light rounded-[6px] px-2 py-1 font-mono text-xs text-ink outline-none focus:border-route w-20"
+                            />
+                            <span className="font-mono text-xs text-slate">&ndash;</span>
+                            <input
+                              type="time"
+                              value={item.endsAt}
+                              onChange={(e) => handleUpdateSlot(item.id, 'endsAt', e.target.value)}
+                              className="bg-paper border border-slate-light rounded-[6px] px-2 py-1 font-mono text-xs text-ink outline-none focus:border-route w-20"
+                            />
 
-                          {durationStr && (
-                            <span className="font-mono text-[10px] text-route font-bold bg-route/10 px-1.5 py-0.5 rounded shrink-0">
-                              {durationStr}
-                            </span>
-                          )}
+                            {durationStr && (
+                              <span className="font-mono text-[10px] text-route font-bold bg-route/10 px-1.5 py-0.5 rounded shrink-0">
+                                {durationStr}
+                              </span>
+                            )}
 
-                          <input
-                            type="text"
-                            value={item.title}
-                            onChange={(e) => handleUpdateSlot(item.id, 'title', e.target.value)}
-                            placeholder="Activity title..."
-                            className="flex-1 bg-paper border border-slate-light rounded-[6px] px-3 py-1 text-xs font-sans text-ink font-semibold outline-none focus:border-route min-w-[150px]"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleExpand(item.id)}
-                            className="p-1.5 text-slate hover:text-route rounded-[6px] bg-paper border border-slate-light"
-                            title="Expand details"
-                          >
-                            <Plus className={`w-3.5 h-3.5 transition-transform ${item.isExpanded ? 'rotate-45' : ''}`} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSlot(item.id)}
-                            className="p-1.5 text-slate hover:text-rose-600 rounded-[6px] bg-paper border border-slate-light"
-                            title="Delete slot"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Inline Expanded Details */}
-                      {item.isExpanded && (
-                        <div className="pt-2 border-t border-slate-light/60 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div className="sm:col-span-2">
-                            <label className="font-mono text-[10px] font-bold text-slate block mb-1">Description</label>
                             <input
                               type="text"
-                              value={item.description}
-                              onChange={(e) => handleUpdateSlot(item.id, 'description', e.target.value)}
-                              placeholder="Activity details..."
-                              className="w-full bg-paper border border-slate-light rounded-[6px] px-2.5 py-1 text-xs text-ink"
+                              value={item.title}
+                              onChange={(e) => handleUpdateSlot(item.id, 'title', e.target.value)}
+                              placeholder="Activity title..."
+                              className="flex-1 bg-paper border border-slate-light rounded-[6px] px-3 py-1 text-xs font-sans text-ink font-semibold outline-none focus:border-route min-w-[150px]"
                             />
                           </div>
 
-                          <div className="flex gap-2">
-                            <div className="flex-1">
-                              <label className="font-mono text-[10px] font-bold text-slate block mb-1">Category</label>
-                              <select
-                                value={item.entityType}
-                                onChange={(e) => handleUpdateSlot(item.id, 'entityType', e.target.value)}
-                                className="w-full bg-paper border border-slate-light rounded-[6px] px-2 py-1 text-xs text-ink font-sans"
-                              >
-                                <option value="poi font-sans">Activity / POI</option>
-                                <option value="meal">Meal / Restaurant</option>
-                                <option value="hotel">Hotel / Stay</option>
-                                <option value="tour">Tour / Safari</option>
-                                <option value="free">Free Time</option>
-                              </select>
-                            </div>
-
-                            <div className="w-24">
-                              <label className="font-mono text-[10px] font-bold text-slate block mb-1">Cost (₹)</label>
-                              <input
-                                type="text"
-                                value={item.cost}
-                                onChange={(e) => handleUpdateSlot(item.id, 'cost', e.target.value)}
-                                className="w-full bg-paper border border-slate-light rounded-[6px] px-2 py-1 text-xs font-mono text-ink"
-                              />
-                            </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleExpand(item.id)}
+                              className="p-1.5 text-slate hover:text-route rounded-[6px] bg-paper border border-slate-light"
+                              title="Expand details"
+                            >
+                              <Plus className={`w-3.5 h-3.5 transition-transform ${item.isExpanded ? 'rotate-45' : ''}`} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSlot(item.id)}
+                              className="p-1.5 text-slate hover:text-rose-600 rounded-[6px] bg-paper border border-slate-light"
+                              title="Delete slot"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
+
+                        {/* Inline Expanded Details */}
+                        {item.isExpanded && (
+                          <div className="pt-2 border-t border-slate-light/60 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="sm:col-span-2">
+                              <label className="font-mono text-[10px] font-bold text-slate block mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={item.description}
+                                onChange={(e) => handleUpdateSlot(item.id, 'description', e.target.value)}
+                                placeholder="Activity details..."
+                                className="w-full bg-paper border border-slate-light rounded-[6px] px-2.5 py-1 text-xs text-ink"
+                              />
+                            </div>
+
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <label className="font-mono text-[10px] font-bold text-slate block mb-1">Category</label>
+                                <select
+                                  value={item.entityType}
+                                  onChange={(e) => handleUpdateSlot(item.id, 'entityType', e.target.value)}
+                                  className="w-full bg-paper border border-slate-light rounded-[6px] px-2 py-1 text-xs text-ink font-sans"
+                                >
+                                  <option value="poi">Activity / POI</option>
+                                  <option value="meal">Meal / Restaurant</option>
+                                  <option value="hotel">Hotel / Stay</option>
+                                  <option value="tour">Tour / Safari</option>
+                                  <option value="free">Free Time</option>
+                                </select>
+                              </div>
+
+                              <div className="w-24">
+                                <label className="font-mono text-[10px] font-bold text-slate block mb-1">Cost (₹)</label>
+                                <input
+                                  type="text"
+                                  value={item.cost}
+                                  onChange={(e) => handleUpdateSlot(item.id, 'cost', e.target.value)}
+                                  className="w-full bg-paper border border-slate-light rounded-[6px] px-2 py-1 text-xs font-mono text-ink"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+              )}
 
               <button
                 type="button"

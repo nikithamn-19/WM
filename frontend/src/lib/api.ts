@@ -10,9 +10,12 @@ export async function apiFetch<T = any>(
   options: RequestInit = {},
   getToken?: () => Promise<string | null>
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
+  const isFormData = options.body instanceof FormData
+  const headers: Record<string, string> = isFormData
+    ? {}
+    : {
+        'Content-Type': 'application/json',
+      }
   if (getToken) {
     const token = await getToken()
     if (token) headers['Authorization'] = `Bearer ${token}`
@@ -348,6 +351,67 @@ export async function loginUser(data: { email: string; password?: string }): Pro
     body: JSON.stringify(data),
   })
 }
+
+// POST face registration
+export async function registerFace(
+  formData: FormData,
+  getToken?: () => Promise<string | null>
+): Promise<any> {
+  return apiFetch('/api/face/register', {
+    method: 'POST',
+    body: formData,
+  }, getToken)
+}
+
+// GET user face status
+export async function getFaceStatus(
+  usrId: string,
+  getToken?: () => Promise<string | null>
+): Promise<{ registered: boolean; status?: string; details?: any }> {
+  return apiFetch<{ registered: boolean; status?: string; details?: any }>(
+    `/api/face/status/${usrId}`,
+    {},
+    getToken
+  ).catch(() => ({ registered: false }))
+}
+
+// GET trip memories boards
+export async function getMemoriesBoards(
+  trpId: string,
+  usrId?: string,
+  getToken?: () => Promise<string | null>
+): Promise<any> {
+  const query = usrId ? `?usrId=${encodeURIComponent(usrId)}` : ''
+  return apiFetch(`/api/photos/memories/${trpId}${query}`, {}, getToken).catch(() => ({
+    boards: { all: [], my: [], folders: {} },
+  }))
+}
+
+// GET trip photos
+export async function getTripPhotos(
+  trpId: string,
+  folder?: string,
+  taggedUserId?: string,
+  getToken?: () => Promise<string | null>
+): Promise<any[]> {
+  const params = new URLSearchParams()
+  if (folder) params.append('folder', folder)
+  if (taggedUserId) params.append('taggedUserId', taggedUserId)
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  return apiFetch<any[]>(`/api/photos/${trpId}${queryString}`, {}, getToken).catch(() => [])
+}
+
+// POST upload trip photo
+export async function uploadTripPhoto(
+  formData: FormData,
+  getToken?: () => Promise<string | null>
+): Promise<any> {
+  return apiFetch('/api/photos', {
+    method: 'POST',
+    body: formData,
+  }, getToken)
+}
+
 
 
 

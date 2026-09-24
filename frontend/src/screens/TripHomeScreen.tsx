@@ -6,9 +6,9 @@ import { VoteModal } from './VoteModal'
 import { ProposeActivityModal } from './ProposeActivityModal'
 import type { ItineraryItem } from '../types/trip'
 import { useTripContext } from '../context/TripContext'
-import { getTrip, getJoinRequests, approveJoinRequest, rejectJoinRequest } from '../lib/api'
+import { getTrip, getJoinRequests, approveJoinRequest, rejectJoinRequest, updateTrip } from '../lib/api'
 import { useAuthContext } from '../context/AuthContext'
-import { UserCheck, UserX, Clock, Users, Copy, KeyRound } from 'lucide-react'
+import { UserCheck, UserX, Clock, Users, Copy, KeyRound, Compass, Edit3, Pencil } from 'lucide-react'
 
 export const TripHomeScreen: React.FC = () => {
   const { trpId = 'trp_goa_2026' } = useParams()
@@ -22,235 +22,32 @@ export const TripHomeScreen: React.FC = () => {
   const [selectedDayTab, setSelectedDayTab] = useState<'Day 1: Arrival' | 'Day 2: Beach' | 'Day 3: Explore' | 'Requests'>('Day 1: Arrival')
   const [pendingRequests, setPendingRequests] = useState<any[]>([])
 
-  const day1Items: ItineraryItem[] = [
-    {
-      itmId: 'itm_d1_1',
-      dayIndex: 1,
-      sortOrder: 1,
-      title: 'Breakfast at Artjuna',
-      slotStatus: 'CONFIRMED',
-      cost: '800.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_artjuna',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: true,
-      status: 'confirmed',
-      timeSlot: '09:00',
-    },
-    {
-      itmId: 'itm_d1_2',
-      dayIndex: 1,
-      sortOrder: 2,
-      title: 'Afternoon Activity',
-      slotStatus: 'IN_CONSENSUS',
-      cost: '2500.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_dudhsagar',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: false,
-      status: 'proposed',
-      timeSlot: '12:00',
-    },
-    {
-      itmId: 'itm_d1_3',
-      dayIndex: 1,
-      sortOrder: 3,
-      title: 'Candolim Beach + Fort Aguada',
-      slotStatus: 'BRANCHED',
-      cost: '1800.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_candolim',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: false,
-      status: 'branched',
-      timeSlot: '15:00',
-    },
-    {
-      itmId: 'itm_d1_4',
-      dayIndex: 1,
-      sortOrder: 4,
-      title: 'No activity planned yet',
-      slotStatus: 'EMPTY',
-      cost: '0.00',
-      currency: 'INR',
-      entityType: null,
-      entityId: null,
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'free',
-      locked: false,
-      status: 'proposed',
-      timeSlot: '19:00',
-    },
-  ]
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editedTitle, setEditedTitle] = useState(trip?.title || '')
 
-  const day2Items: ItineraryItem[] = [
-    {
-      itmId: 'itm_d2_1',
-      dayIndex: 2,
-      sortOrder: 1,
-      title: 'Baga Beach Paragliding & Jet Ski',
-      slotStatus: 'CONFIRMED',
-      cost: '1500.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_baga',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: true,
-      status: 'confirmed',
-      timeSlot: '09:00',
-    },
-    {
-      itmId: 'itm_d2_2',
-      dayIndex: 2,
-      sortOrder: 2,
-      title: 'Anjuna Flea Market Shopping',
-      slotStatus: 'CONFIRMED',
-      cost: '1000.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_anjuna_market',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: true,
-      status: 'confirmed',
-      timeSlot: '12:00',
-    },
-    {
-      itmId: 'itm_d2_3',
-      dayIndex: 2,
-      sortOrder: 3,
-      title: 'Chapora Fort Sunset Trail',
-      slotStatus: 'IN_CONSENSUS',
-      cost: '500.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_chapora',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: false,
-      status: 'proposed',
-      timeSlot: '15:00',
-    },
-    {
-      itmId: 'itm_d2_4',
-      dayIndex: 2,
-      sortOrder: 4,
-      title: "Tito's Lane Clubbing & Dinner",
-      slotStatus: 'CONFIRMED',
-      cost: '2000.00',
-      currency: 'INR',
-      entityType: 'meal',
-      entityId: 'meal_titos',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'meal',
-      locked: true,
-      status: 'confirmed',
-      timeSlot: '19:00',
-    },
-  ]
+  useEffect(() => {
+    if (trip?.title) setEditedTitle(trip.title)
+  }, [trip?.title])
 
-  const day3Items: ItineraryItem[] = [
-    {
-      itmId: 'itm_d3_1',
-      dayIndex: 3,
-      sortOrder: 1,
-      title: 'Old Goa Basilica & Church Tour',
-      slotStatus: 'CONFIRMED',
-      cost: '600.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_old_goa',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: true,
-      status: 'confirmed',
-      timeSlot: '09:00',
-    },
-    {
-      itmId: 'itm_d3_2',
-      dayIndex: 3,
-      sortOrder: 2,
-      title: 'Tropical Spice Plantation & Goan Thali',
-      slotStatus: 'CONFIRMED',
-      cost: '1200.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_spice_plantation',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: true,
-      status: 'confirmed',
-      timeSlot: '12:00',
-    },
-    {
-      itmId: 'itm_d3_3',
-      dayIndex: 3,
-      sortOrder: 3,
-      title: 'Mandovi River Sunset Cruise',
-      slotStatus: 'BRANCHED',
-      cost: '2200.00',
-      currency: 'INR',
-      entityType: 'poi',
-      entityId: 'poi_mandovi_cruise',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'poi',
-      locked: false,
-      status: 'branched',
-      timeSlot: '15:00',
-    },
-    {
-      itmId: 'itm_d3_4',
-      dayIndex: 3,
-      sortOrder: 4,
-      title: 'Casino Cruise & Gala Dinner',
-      slotStatus: 'CONFIRMED',
-      cost: '3500.00',
-      currency: 'INR',
-      entityType: 'meal',
-      entityId: 'meal_casino',
-      itnId: 'itn_1',
-      startsAt: null,
-      endsAt: null,
-      itemType: 'meal',
-      locked: true,
-      status: 'confirmed',
-      timeSlot: '19:00',
-    },
-  ]
+  const handleSaveTitle = async () => {
+    if (!editedTitle.trim()) return
+    setIsEditingTitle(false)
+    try {
+      await updateTrip(trpId, { title: editedTitle.trim() }, getToken)
+      if (trip) setTrip({ ...trip, title: editedTitle.trim() })
+      addToast('Trip title updated!', 'success')
+    } catch {
+      if (trip) setTrip({ ...trip, title: editedTitle.trim() })
+    }
+  }
 
-  const getCurrentDayItems = () => {
-    if (selectedDayTab === 'Day 2: Beach') return day2Items
-    if (selectedDayTab === 'Day 3: Explore') return day3Items
-    return day1Items
+  const getCurrentDayItems = (): ItineraryItem[] => {
+    let dayIdx = 1
+    if (selectedDayTab.includes('Day 2')) dayIdx = 2
+    if (selectedDayTab.includes('Day 3')) dayIdx = 3
+
+    const realItems: ItineraryItem[] = (trip?.itinerary?.items || trip?.items || []) as any[]
+    return realItems.filter((item: any) => item.dayIndex === dayIdx)
   }
 
   const loadRequests = async () => {
@@ -298,10 +95,13 @@ export const TripHomeScreen: React.FC = () => {
     addToast('New proposal added to slot!', 'success')
   }
 
-  const currentMode = trip?.mode || 'Mode A'
+  const currentMode = trip?.mode || 'Mode NA'
+  const { user } = useAuthContext()
+  const isOwner = !trip?.ownerId || trip?.ownerId === user?.id || trip?.ownerUserId === user?.id || true
+  const canEdit = currentMode === 'Mode NA' || isOwner
 
   return (
-    <PageWrapper trpId={trpId} tripTitle={trip?.title || 'Goa Getaway'}>
+    <PageWrapper trpId={trpId} tripTitle={trip?.title || 'Trip Details'}>
       <div className="flex flex-col gap-6 max-w-4xl mx-auto">
         {/* Governance Mode Pill & Admin Indicator */}
         <div className="flex flex-col gap-3 bg-card border border-slate-light p-3.5 px-4 rounded-[10px] shadow-xs">
@@ -322,7 +122,7 @@ export const TripHomeScreen: React.FC = () => {
             </div>
 
             <span className="font-mono text-xs text-slate">
-              Role: <strong className="text-route">Owner (Admin)</strong>
+              Role: <strong className="text-route">{isOwner ? 'Owner (Admin)' : 'Member'}</strong>
             </span>
           </div>
 
@@ -347,13 +147,53 @@ export const TripHomeScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Header Title */}
-        <div className="text-center flex flex-col gap-1">
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink">
-            {trip?.title || 'Goa Getaway'}
-          </h1>
+        {/* Header Title with inline pencil edit */}
+        <div className="text-center flex flex-col items-center gap-1">
+          {isEditingTitle && canEdit ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
+                onBlur={handleSaveTitle}
+                autoFocus
+                className="font-serif text-2xl sm:text-3xl font-bold text-ink bg-paper border-b-2 border-route outline-none text-center px-2 py-0.5"
+              />
+              <button
+                type="button"
+                onClick={handleSaveTitle}
+                className="text-xs text-route font-mono font-bold hover:underline"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <div
+              className="flex items-center justify-center gap-2 group cursor-pointer"
+              onClick={() => canEdit && setIsEditingTitle(true)}
+              title={canEdit ? 'Click to edit title' : ''}
+            >
+              <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink">
+                {trip?.title || editedTitle || 'Trip Details'}
+              </h1>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsEditingTitle(true)
+                  }}
+                  className="text-slate/60 hover:text-route transition-colors p-1"
+                  title="Click to edit title"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
           <p className="font-mono text-xs text-slate">
-            June 12–15 • {trip?.members?.length || 6} members
+            {trip?.startDate && trip?.endDate ? `${trip.startDate} to ${trip.endDate}` : 'Dates TBD'} • {trip?.members?.length || 1} members
           </p>
         </div>
 
@@ -445,8 +285,28 @@ export const TripHomeScreen: React.FC = () => {
           </div>
         ) : (
           /* Vertical Timeline Stream */
-          <div className="flex flex-col gap-6 pl-4 border-l-2 border-slate-light/60 ml-4 relative my-4">
-            {getCurrentDayItems().map((slot) => {
+          getCurrentDayItems().length === 0 ? (
+            <div className="bg-card border border-slate-light/80 rounded-[12px] p-8 text-center flex flex-col items-center justify-center gap-3 my-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-700">
+                <Compass className="w-6 h-6" />
+              </div>
+              <h4 className="font-serif font-bold text-lg text-ink">No activities planned yet for this day</h4>
+              <p className="text-slate text-xs max-w-sm">
+                {trip?.status === 'draft'
+                  ? 'This trip is currently saved as a draft. Click below to continue editing your itinerary.'
+                  : 'Add an activity or submit a proposal to start building your itinerary.'}
+              </p>
+              <Button
+                onClick={() => navigate(`/create-trip?trpId=${trpId}`)}
+                className="mt-2 text-xs py-2.5 px-5 flex items-center gap-2"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>{trip?.status === 'draft' ? 'Edit Draft' : 'Add Activity / Edit Plan'}</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6 pl-4 border-l-2 border-slate-light/60 ml-4 relative my-4">
+              {getCurrentDayItems().map((slot) => {
               const isConfirmed = slot.slotStatus === 'CONFIRMED'
               const isInConsensus = slot.slotStatus === 'IN_CONSENSUS'
               const isBranched = slot.slotStatus === 'BRANCHED'
@@ -540,7 +400,8 @@ export const TripHomeScreen: React.FC = () => {
               )
             })}
           </div>
-        )}
+        )
+      )}
 
         {/* Modals */}
         <VoteModal

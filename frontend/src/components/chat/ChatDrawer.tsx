@@ -115,6 +115,11 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           <div className="text-center font-mono text-xs text-slate p-4 animate-pulse">
             Loading chat messages...
           </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center font-mono text-xs text-slate p-8 border border-dashed border-slate-light rounded-[8px] flex flex-col items-center justify-center gap-1">
+            <span className="font-bold text-ink text-sm">No messages yet</span>
+            <span>Start the group conversation for this trip!</span>
+          </div>
         ) : (
           messages.map((msg) => (
             <ChatMessageItem

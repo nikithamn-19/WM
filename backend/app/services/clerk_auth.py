@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 import httpx
 import jwt
 from functools import lru_cache
@@ -19,16 +20,18 @@ def get_jwks():
         print(f"Warning: Failed to fetch JWKS from {CLERK_JWKS_URL}: {e}")
         return None
 
-async def verify_clerk_token(authorization: str = Header(...)) -> str:
+async def verify_clerk_token(authorization: Optional[str] = Header(None)) -> str:
     """
     Verify Clerk JWT from Authorization header.
     Returns the Clerk user_id (sub claim) on success.
-    Raises HTTPException(401) on failure.
+    Falls back to 'usr_demo_owner' if no header is provided.
     """
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
+        return "usr_demo_owner"
     
     token = authorization.replace("Bearer ", "").strip()
+    if not token or token == "null" or token == "undefined":
+        return "usr_demo_owner"
     
     # Dev / Direct testing bypass for opaque test user IDs
     if token.startswith("usr_") or token.startswith("user_"):

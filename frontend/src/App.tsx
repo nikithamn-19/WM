@@ -111,6 +111,7 @@ export default function App() {
             <Route path="/solo-matches" element={<ProtectedRoute><SoloMatchScreen /></ProtectedRoute>} />
             <Route path="/solo" element={<ProtectedRoute><SoloMatchScreen /></ProtectedRoute>} />
             <Route path="/trips/new" element={<ProtectedRoute><CreateTripScreen /></ProtectedRoute>} />
+            <Route path="/create-trip" element={<ProtectedRoute><CreateTripScreen /></ProtectedRoute>} />
             <Route path="/trips/:trpId/preview" element={<ProtectedRoute><TripPreviewScreen /></ProtectedRoute>} />
             <Route path="/trips/:trpId" element={<ProtectedRoute><TripHomeScreen /></ProtectedRoute>} />
             <Route path="/trips/:trpId/branches/:itmId" element={<ProtectedRoute><BranchViewScreen /></ProtectedRoute>} />
