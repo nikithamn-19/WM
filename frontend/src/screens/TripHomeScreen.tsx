@@ -24,6 +24,31 @@ export const TripHomeScreen: React.FC = () => {
   // Active Day Tab
   const [activeDay, setActiveDay] = useState<number>(1)
 
+  // Trip Code & Copy State
+  const [copiedTripCode, setCopiedTripCode] = useState(false)
+  const tripCode = trpId === 'trp_goa_2026' ? 'GOA-2026' : trpId.toUpperCase().replace('TRP_', '')
+
+  const handleCopyTripCode = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(tripCode)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = tripCode
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
+      setCopiedTripCode(true)
+      addToast(`Trip code "${tripCode}" copied to clipboard!`, 'success')
+      setTimeout(() => setCopiedTripCode(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy trip code', err)
+      addToast('Failed to copy trip code', 'conflict')
+    }
+  }
+
   // Create Activity Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newActivityName, setNewActivityName] = useState('')
@@ -236,7 +261,39 @@ export const TripHomeScreen: React.FC = () => {
         </div>
 
         {/* 2. Trip Title & Dates Header (Centered, Matches Image 2 & 3) */}
-        <div className="flex flex-col items-center justify-center text-center gap-1 pt-2">
+        <div className="relative flex flex-col items-center justify-center text-center gap-1 pt-2">
+          {/* Top-Right Corner Copy Trip Code Button (Above Create Activity, beside Goa Getaway heading) */}
+          <div className="sm:absolute sm:right-0 sm:top-2 flex items-center justify-end mb-2 sm:mb-0">
+            <button
+              type="button"
+              onClick={handleCopyTripCode}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-slate-light bg-card hover:bg-paper text-slate hover:text-ink transition-all shadow-2xs group cursor-pointer text-xs"
+              title="Click to copy trip code"
+            >
+              <span className="text-slate font-sans text-xs">Trip Code:</span>
+              <span className="font-bold text-ink bg-route/10 text-route px-2 py-0.5 rounded font-mono text-xs border border-route/20">
+                {tripCode}
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] text-route font-sans font-semibold group-hover:underline ml-0.5">
+                {copiedTripCode ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-emerald-700">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-slate group-hover:text-route transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span>Copy Trip Code</span>
+                  </>
+                )}
+              </span>
+            </button>
+          </div>
+
           <h1 className="font-serif text-3xl sm:text-4xl font-bold text-ink tracking-tight">
             Goa Getaway
           </h1>
