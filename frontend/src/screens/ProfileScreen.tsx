@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
@@ -11,6 +11,102 @@ export interface UserProfileData {
   email: string
   homeCity: string
   bio: string
+}
+
+export interface UserFaceData {
+  straightPhoto: string
+  leftPhoto: string
+  rightPhoto: string
+  isRegistered: boolean
+  updatedAt?: string
+}
+
+interface FaceUploadCardProps {
+  title: string
+  subtitle: string
+  photoUrl: string
+  onFileSelected: (dataUrl: string) => void
+  onRemove: () => void
+}
+
+const FaceUploadCard: React.FC<FaceUploadCardProps> = ({
+  title,
+  subtitle,
+  photoUrl,
+  onFileSelected,
+  onRemove,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      if (dataUrl) {
+        onFileSelected(dataUrl)
+      }
+    }
+    reader.readAsDataURL(file)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-between border-2 border-dashed rounded-[12px] p-4 bg-paper min-h-[190px] text-center gap-3 transition-all border-slate-light hover:border-route">
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      <div className="flex flex-col items-center gap-1">
+        <span className="font-mono text-xs font-bold text-ink">{title}</span>
+        <span className="text-[11px] font-sans text-slate">{subtitle}</span>
+      </div>
+
+      {photoUrl ? (
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-24 h-24 rounded-[10px] overflow-hidden border-2 border-route shadow-2xs relative group">
+            <img src={photoUrl} alt={title} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <span className="text-[10px] font-mono text-white font-bold">Replace</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-[11px] font-mono text-route hover:underline cursor-pointer"
+            >
+              Change
+            </button>
+            <span className="text-slate text-xs">•</span>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="text-[11px] font-mono text-rose-600 hover:underline cursor-pointer"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-route/5 rounded-[8px] py-4 transition-all"
+        >
+          <div className="w-10 h-10 rounded-full bg-slate-light/60 text-slate flex items-center justify-center text-lg">
+            📷
+          </div>
+          <span className="text-xs font-mono font-medium text-route">+ Upload Photo</span>
+          <span className="text-[10px] font-sans text-slate">Supports JPG, PNG</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export interface TravelPreferencesData {
@@ -42,13 +138,37 @@ const DEFAULT_TRAVEL_PREFS: TravelPreferencesData = {
     'Prefer vegetarian and coastal seafood options, scenic morning walks over late nights, boutique homestays or beach cabins, and budget around mid-range (₹₹).',
 }
 
+const DEFAULT_FACE_DATA: UserFaceData = {
+  straightPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  leftPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+  rightPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+  isRegistered: true,
+  updatedAt: '2026-09-24',
+}
+
 export const ProfileScreen: React.FC = () => {
   const navigate = useNavigate()
   const { currentUser } = useAuthContext()
   const { addToast } = useTripContext()
 
-  // Active Category Tab
-  const [activeCategory, setActiveCategory] = useState<'profile' | 'preferences'>('profile')
+  // Active Category Tab: 'profile' | 'face' | 'preferences'
+  const [activeCategory, setActiveCategory] = useState<'profile' | 'face' | 'preferences'>('profile')
+
+  // Face Registration State
+  const [faceData, setFaceData] = useState<UserFaceData>(() => {
+    const saved = localStorage.getItem('wm_user_face_data')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        console.error('Error parsing face data from localStorage', e)
+      }
+    }
+    return DEFAULT_FACE_DATA
+  })
+
+  const [isEditingFace, setIsEditingFace] = useState(false)
+  const [faceForm, setFaceForm] = useState<UserFaceData>(faceData)
 
   // Profile State
   const [profile, setProfile] = useState<UserProfileData>(() => {
@@ -128,6 +248,10 @@ export const ProfileScreen: React.FC = () => {
   }, [profile])
 
   useEffect(() => {
+    setFaceForm(faceData)
+  }, [faceData])
+
+  useEffect(() => {
     setPrefsForm(travelPrefs)
   }, [travelPrefs])
 
@@ -138,6 +262,26 @@ export const ProfileScreen: React.FC = () => {
     localStorage.setItem('wm_user_profile', JSON.stringify(profileForm))
     setIsEditingProfile(false)
     addToast('Profile details updated successfully!', 'success')
+  }
+
+  const handleSaveFace = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!faceForm.straightPhoto || !faceForm.leftPhoto || !faceForm.rightPhoto) {
+      addToast('Please provide all 3 profiles: front face, left profile, and right profile', 'conflict')
+      return
+    }
+
+    const updatedData: UserFaceData = {
+      ...faceForm,
+      isRegistered: true,
+      updatedAt: new Date().toISOString().split('T')[0],
+    }
+
+    setFaceData(updatedData)
+    localStorage.setItem('wm_user_face_data', JSON.stringify(updatedData))
+    setIsEditingFace(false)
+    addToast('Face profiles registered and saved successfully!', 'success')
   }
 
   const handleSavePrefs = (e: React.FormEvent) => {
@@ -228,12 +372,12 @@ export const ProfileScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Category Navigation Tabs: Profile vs Travel Preferences */}
-        <div className="flex items-center border-b border-slate-light gap-8">
+        {/* Category Navigation Tabs: Profile vs Register My Face vs Travel Preferences */}
+        <div className="flex items-center border-b border-slate-light gap-6 sm:gap-8 flex-wrap">
           <button
             type="button"
             onClick={() => setActiveCategory('profile')}
-            className={`font-serif text-base font-bold pb-3 border-b-2 transition-all flex items-center gap-2 ${
+            className={`font-serif text-base font-bold pb-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeCategory === 'profile'
                 ? 'border-route text-route'
                 : 'border-transparent text-slate hover:text-ink'
@@ -247,8 +391,24 @@ export const ProfileScreen: React.FC = () => {
 
           <button
             type="button"
+            onClick={() => setActiveCategory('face')}
+            className={`font-serif text-base font-bold pb-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeCategory === 'face'
+                ? 'border-route text-route'
+                : 'border-transparent text-slate hover:text-ink'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Register My Face
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveCategory('preferences')}
-            className={`font-serif text-base font-bold pb-3 border-b-2 transition-all flex items-center gap-2 ${
+            className={`font-serif text-base font-bold pb-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeCategory === 'preferences'
                 ? 'border-route text-route'
                 : 'border-transparent text-slate hover:text-ink'
@@ -433,7 +593,204 @@ export const ProfileScreen: React.FC = () => {
         )}
 
         {/* ======================================================== */}
-        {/* CATEGORY 2: TRAVEL PREFERENCES SECTION                  */}
+        {/* CATEGORY 2: REGISTER MY FACE SECTION                     */}
+        {/* ======================================================== */}
+        {activeCategory === 'face' && (
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-ink">Register My Face</h3>
+                <p className="font-sans text-xs text-slate mt-0.5">
+                  Register your face profiles (front face, left profile, and right profile) for automatic trip photo matching.
+                </p>
+              </div>
+
+              {!isEditingFace && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsEditingFace(true)}
+                  className="text-xs self-start sm:self-auto cursor-pointer"
+                >
+                  Edit Face Profiles
+                </Button>
+              )}
+            </div>
+
+            {!isEditingFace ? (
+              /* Read-Only Face Profiles View */
+              <div className="bg-card border border-slate-light rounded-[16px] p-6 sm:p-8 shadow-xs flex flex-col gap-6">
+                <div className="flex items-center justify-between border-b border-slate-light/70 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-serif text-base font-bold text-ink">
+                      Active Face Biometric Profiles
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    {faceData.isRegistered ? 'Verified & Registered' : 'Not Registered'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {/* Angle 1: Direct Front Face */}
+                  <div className="flex flex-col items-center text-center p-4 bg-paper rounded-[12px] border border-slate-light/80 gap-3">
+                    <span className="font-mono text-xs font-bold text-ink uppercase tracking-wide">
+                      1. Front Face Profile
+                    </span>
+                    <div className="w-32 h-32 rounded-[12px] overflow-hidden border-2 border-route/30 relative bg-paper shadow-2xs">
+                      {faceData.straightPhoto ? (
+                        <img
+                          src={faceData.straightPhoto}
+                          alt="Front Face Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate text-xs font-mono">
+                          No photo
+                        </div>
+                      )}
+                      {faceData.straightPhoto && (
+                        <div className="absolute top-1.5 right-1.5 bg-route text-card rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-2xs">
+                          ✓
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-mono text-slate">Straight Ahead View</span>
+                  </div>
+
+                  {/* Angle 2: Left Side Profile */}
+                  <div className="flex flex-col items-center text-center p-4 bg-paper rounded-[12px] border border-slate-light/80 gap-3">
+                    <span className="font-mono text-xs font-bold text-ink uppercase tracking-wide">
+                      2. Left Side Profile
+                    </span>
+                    <div className="w-32 h-32 rounded-[12px] overflow-hidden border-2 border-route/30 relative bg-paper shadow-2xs">
+                      {faceData.leftPhoto ? (
+                        <img
+                          src={faceData.leftPhoto}
+                          alt="Left Side Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate text-xs font-mono">
+                          No photo
+                        </div>
+                      )}
+                      {faceData.leftPhoto && (
+                        <div className="absolute top-1.5 right-1.5 bg-route text-card rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-2xs">
+                          ✓
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-mono text-slate">Left Angle (45°–90°)</span>
+                  </div>
+
+                  {/* Angle 3: Right Side Profile */}
+                  <div className="flex flex-col items-center text-center p-4 bg-paper rounded-[12px] border border-slate-light/80 gap-3">
+                    <span className="font-mono text-xs font-bold text-ink uppercase tracking-wide">
+                      3. Right Side Profile
+                    </span>
+                    <div className="w-32 h-32 rounded-[12px] overflow-hidden border-2 border-route/30 relative bg-paper shadow-2xs">
+                      {faceData.rightPhoto ? (
+                        <img
+                          src={faceData.rightPhoto}
+                          alt="Right Side Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate text-xs font-mono">
+                          No photo
+                        </div>
+                      )}
+                      {faceData.rightPhoto && (
+                        <div className="absolute top-1.5 right-1.5 bg-route text-card rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-2xs">
+                          ✓
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-mono text-slate">Right Angle (45°–90°)</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-paper rounded-[10px] border border-slate-light/70 flex items-start gap-3 text-xs font-sans text-slate">
+                  <span className="text-route text-base mt-0.5">ℹ️</span>
+                  <div className="flex flex-col gap-0.5">
+                    <strong className="text-ink font-semibold">How WanderMatch uses your registered face:</strong>
+                    <span>
+                      These 3 perspective angles allow WanderMatch’s engine to detect your photos across group trip albums and automatically organize them under <em>My Photos</em> in Memories.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Editable Face Registration Form */
+              <form
+                onSubmit={handleSaveFace}
+                className="bg-card border-2 border-route/40 rounded-[16px] p-6 sm:p-8 shadow-sm flex flex-col gap-6"
+              >
+                <div className="border-b border-slate-light pb-3 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-ink">
+                      Upload Face Angles &amp; Register
+                    </h4>
+                    <p className="font-sans text-xs text-slate mt-0.5">
+                      Please upload or capture all 3 angles: front face, left profile, and right profile.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono text-route font-semibold">Editing Mode Active</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Front Face Capture */}
+                  <FaceUploadCard
+                    title="1. Front Face"
+                    subtitle="Direct forward view, clear lighting"
+                    photoUrl={faceForm.straightPhoto}
+                    onFileSelected={(dataUrl) => setFaceForm((prev) => ({ ...prev, straightPhoto: dataUrl }))}
+                    onRemove={() => setFaceForm((prev) => ({ ...prev, straightPhoto: '' }))}
+                  />
+
+                  {/* Left Side Profile Capture */}
+                  <FaceUploadCard
+                    title="2. Left Profile"
+                    subtitle="Turn head 45° to 90° left"
+                    photoUrl={faceForm.leftPhoto}
+                    onFileSelected={(dataUrl) => setFaceForm((prev) => ({ ...prev, leftPhoto: dataUrl }))}
+                    onRemove={() => setFaceForm((prev) => ({ ...prev, leftPhoto: '' }))}
+                  />
+
+                  {/* Right Side Profile Capture */}
+                  <FaceUploadCard
+                    title="3. Right Profile"
+                    subtitle="Turn head 45° to 90° right"
+                    photoUrl={faceForm.rightPhoto}
+                    onFileSelected={(dataUrl) => setFaceForm((prev) => ({ ...prev, rightPhoto: dataUrl }))}
+                    onRemove={() => setFaceForm((prev) => ({ ...prev, rightPhoto: '' }))}
+                  />
+                </div>
+
+                <div className="flex justify-end items-center gap-3 pt-4 border-t border-slate-light">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setFaceForm(faceData)
+                      setIsEditingFace(false)
+                    }}
+                    className="text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="text-xs">
+                    Save &amp; Register Face
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* CATEGORY 3: TRAVEL PREFERENCES SECTION                  */}
         {/* ======================================================== */}
         {activeCategory === 'preferences' && (
           <div className="flex flex-col gap-6">
