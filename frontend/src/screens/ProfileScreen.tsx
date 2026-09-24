@@ -139,11 +139,10 @@ const DEFAULT_TRAVEL_PREFS: TravelPreferencesData = {
 }
 
 const DEFAULT_FACE_DATA: UserFaceData = {
-  straightPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-  leftPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-  rightPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-  isRegistered: true,
-  updatedAt: '2026-09-24',
+  straightPhoto: '',
+  leftPhoto: '',
+  rightPhoto: '',
+  isRegistered: false,
 }
 
 export const ProfileScreen: React.FC = () => {
@@ -159,7 +158,17 @@ export const ProfileScreen: React.FC = () => {
     const saved = localStorage.getItem('wm_user_face_data')
     if (saved) {
       try {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(saved)
+        // Discard any dummy unsplash placeholder data from before
+        if (
+          parsed.straightPhoto?.includes('unsplash.com') ||
+          parsed.leftPhoto?.includes('unsplash.com') ||
+          parsed.rightPhoto?.includes('unsplash.com')
+        ) {
+          localStorage.removeItem('wm_user_face_data')
+          return DEFAULT_FACE_DATA
+        }
+        return parsed
       } catch (e) {
         console.error('Error parsing face data from localStorage', e)
       }
@@ -607,11 +616,11 @@ export const ProfileScreen: React.FC = () => {
 
               {!isEditingFace && (
                 <Button
-                  variant="secondary"
+                  variant={faceData.isRegistered ? 'secondary' : 'primary'}
                   onClick={() => setIsEditingFace(true)}
                   className="text-xs self-start sm:self-auto cursor-pointer"
                 >
-                  Edit Face Profiles
+                  {faceData.isRegistered ? 'Edit Face Profiles' : '+ Register Face Profiles'}
                 </Button>
               )}
             </div>
@@ -621,12 +630,22 @@ export const ProfileScreen: React.FC = () => {
               <div className="bg-card border border-slate-light rounded-[16px] p-6 sm:p-8 shadow-xs flex flex-col gap-6">
                 <div className="flex items-center justify-between border-b border-slate-light/70 pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        faceData.isRegistered ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    ></span>
                     <span className="font-serif text-base font-bold text-ink">
                       Active Face Biometric Profiles
                     </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
+                      faceData.isRegistered
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                        : 'bg-amber-100 text-amber-900 border-amber-300'
+                    }`}
+                  >
                     {faceData.isRegistered ? 'Verified & Registered' : 'Not Registered'}
                   </span>
                 </div>
@@ -645,8 +664,18 @@ export const ProfileScreen: React.FC = () => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate text-xs font-mono">
-                          No photo
+                        <div
+                          onClick={() => setIsEditingFace(true)}
+                          className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-route/5 text-slate transition-all p-2"
+                          title="Click to register this photo"
+                        >
+                          <div className="w-11 h-11 rounded-full bg-slate-light/60 flex items-center justify-center text-slate">
+                            <svg className="w-5 h-5 text-slate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate font-medium">No face registered</span>
                         </div>
                       )}
                       {faceData.straightPhoto && (
@@ -671,8 +700,18 @@ export const ProfileScreen: React.FC = () => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate text-xs font-mono">
-                          No photo
+                        <div
+                          onClick={() => setIsEditingFace(true)}
+                          className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-route/5 text-slate transition-all p-2"
+                          title="Click to register this photo"
+                        >
+                          <div className="w-11 h-11 rounded-full bg-slate-light/60 flex items-center justify-center text-slate">
+                            <svg className="w-5 h-5 text-slate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate font-medium">No face registered</span>
                         </div>
                       )}
                       {faceData.leftPhoto && (
@@ -697,8 +736,18 @@ export const ProfileScreen: React.FC = () => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate text-xs font-mono">
-                          No photo
+                        <div
+                          onClick={() => setIsEditingFace(true)}
+                          className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-route/5 text-slate transition-all p-2"
+                          title="Click to register this photo"
+                        >
+                          <div className="w-11 h-11 rounded-full bg-slate-light/60 flex items-center justify-center text-slate">
+                            <svg className="w-5 h-5 text-slate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate font-medium">No face registered</span>
                         </div>
                       )}
                       {faceData.rightPhoto && (
