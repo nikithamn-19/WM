@@ -13,12 +13,23 @@ export interface MemoryPhotoItem {
   title: string
   url: string
   isMyPhoto?: boolean
+  member?: string
 }
 
 export const MemoriesScreen: React.FC = () => {
   const { trpId = 'trp_goa_2026' } = useParams()
   const { addToast } = useTripContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const TRIP_MEMBERS = [
+    'All Members',
+    'Nikitha (You)',
+    'Alex Chen',
+    'Priya Sharma',
+    'Maya Patel',
+    'Jordan Lee',
+    'Sam Rivera',
+  ]
 
   const INITIAL_FOLDERS = [
     'All',
@@ -35,6 +46,7 @@ export const MemoriesScreen: React.FC = () => {
       title: 'Group Jump at Sunset',
       url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
       isMyPhoto: true,
+      member: 'Nikitha (You)',
     },
     {
       id: 'm2',
@@ -43,6 +55,7 @@ export const MemoriesScreen: React.FC = () => {
       title: 'Poolside Sunset View',
       url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
       isMyPhoto: true,
+      member: 'Alex Chen',
     },
     {
       id: 'm3',
@@ -51,6 +64,7 @@ export const MemoriesScreen: React.FC = () => {
       title: 'Seafood Platter at Shack',
       url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=600&q=80',
       isMyPhoto: false,
+      member: 'Priya Sharma',
     },
     {
       id: 'm4',
@@ -59,12 +73,13 @@ export const MemoriesScreen: React.FC = () => {
       title: 'Heritage Fort Aguada View',
       url: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80',
       isMyPhoto: false,
+      member: 'Maya Patel',
     },
   ]
 
   const [activeTab, setActiveTab] = useState<'all' | 'my'>('all')
   const [openedFolder, setOpenedFolder] = useState<string | null>(null)
-  const [selectedDay, setSelectedDay] = useState<string>('All')
+  const [selectedMember, setSelectedMember] = useState<string>('All Members')
   const [selectedFolder, setSelectedFolder] = useState<string>('All')
 
   // Persistent Folders State
@@ -86,7 +101,18 @@ export const MemoriesScreen: React.FC = () => {
   const [photos, setPhotos] = useState<MemoryPhotoItem[]>(() => {
     try {
       const saved = localStorage.getItem(`wm_photos_${trpId}`)
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        const parsed: MemoryPhotoItem[] = JSON.parse(saved)
+        // Ensure every photo has a valid member assigned
+        return parsed.map((p, idx) => ({
+          ...p,
+          member:
+            p.member ||
+            (p.isMyPhoto
+              ? 'Nikitha (You)'
+              : TRIP_MEMBERS[1 + (idx % (TRIP_MEMBERS.length - 1))]),
+        }))
+      }
     } catch (e) {
       console.error('Error reading photos from localStorage', e)
     }
@@ -195,7 +221,10 @@ export const MemoriesScreen: React.FC = () => {
         : selectedFolder === 'All'
         ? 'Arrival & Resort'
         : selectedFolder
-    const targetDay = selectedDay === 'All' ? 'Day 1' : selectedDay
+    const targetMember =
+      selectedMember === 'All' || selectedMember === 'All Members'
+        ? 'Nikitha (You)'
+        : selectedMember
 
     const newItemsPromises = filesArray.map((file, idx) => {
       return new Promise<MemoryPhotoItem>((resolve) => {
@@ -205,10 +234,11 @@ export const MemoriesScreen: React.FC = () => {
           resolve({
             id: `m_upload_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 5)}`,
             folder: targetFolder,
-            day: targetDay,
+            day: 'Day 1',
             title: file.name.replace(/\.[^/.]+$/, ''),
             url: dataUrl || URL.createObjectURL(file),
             isMyPhoto: true,
+            member: targetMember,
           })
         }
         reader.readAsDataURL(file)
@@ -227,9 +257,14 @@ export const MemoriesScreen: React.FC = () => {
 
   // Filtered photos for 'All Photos' tab
   const filteredAllPhotos = photos.filter((p) => {
-    const matchesDay = selectedDay === 'All' || p.day === selectedDay
+    const photoMember =
+      p.member || (p.isMyPhoto ? 'Nikitha (You)' : 'Alex Chen')
+    const matchesMember =
+      selectedMember === 'All' ||
+      selectedMember === 'All Members' ||
+      photoMember === selectedMember
     const matchesFolder = selectedFolder === 'All' || p.folder === selectedFolder
-    return matchesDay && matchesFolder
+    return matchesMember && matchesFolder
   })
 
   // Photos for currently opened folder in 'My Photos'
@@ -299,7 +334,9 @@ export const MemoriesScreen: React.FC = () => {
         {/* Hover Metadata Overlay */}
         <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end text-card text-[11px] font-sans pointer-events-none">
           <span className="font-bold truncate">{photo.title}</span>
-          <span className="font-mono text-[9px] text-card/80">{photo.day}</span>
+          <span className="font-mono text-[9px] text-card/90">
+            👤 {photo.member || (photo.isMyPhoto ? 'Nikitha (You)' : 'Alex Chen')}
+          </span>
         </div>
       </div>
     )
@@ -419,21 +456,21 @@ export const MemoriesScreen: React.FC = () => {
             </button>
           </div>
 
-          {/* VIEW MODE 1: ALL PHOTOS (Filtered by Day & Folder, Smaller Compact Grid) */}
+          {/* VIEW MODE 1: ALL PHOTOS (Filtered by Member & Folder, Smaller Compact Grid) */}
           {activeTab === 'all' && (
             <div className="flex flex-col gap-4">
-              {/* Day & Folder Dropdown Filters */}
+              {/* Member & Folder Dropdown Filters */}
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <label className="font-mono text-xs text-slate font-bold">Filter Day:</label>
+                  <label className="font-mono text-xs text-slate font-bold">Filter By Member:</label>
                   <select
-                    value={selectedDay}
-                    onChange={(e) => setSelectedDay(e.target.value)}
-                    className="bg-paper border border-slate-light rounded-[8px] px-3 py-1.5 text-xs text-ink font-mono outline-none focus:border-route min-h-[36px]"
+                    value={selectedMember}
+                    onChange={(e) => setSelectedMember(e.target.value)}
+                    className="bg-paper border border-slate-light rounded-[8px] px-3 py-1.5 text-xs text-ink font-sans outline-none focus:border-route min-h-[36px]"
                   >
-                    {['All', 'Day 1', 'Day 2', 'Day 3', 'Day 4'].map((day) => (
-                      <option key={day} value={day}>
-                        {day === 'All' ? 'All Days' : day}
+                    {TRIP_MEMBERS.map((member) => (
+                      <option key={member} value={member}>
+                        {member}
                       </option>
                     ))}
                   </select>
