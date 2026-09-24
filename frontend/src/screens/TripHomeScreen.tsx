@@ -25,15 +25,20 @@ export const TripHomeScreen: React.FC = () => {
   // Active Day Tab
   const [activeDay, setActiveDay] = useState<number>(1)
 
-  // Modal State
+  // Modals State
   const [isProposeOpen, setIsProposeOpen] = useState(false)
   const [activeSlotName, setActiveSlotName] = useState('New Activity Slot')
 
-  // Stats drawer toggle (optional info from Image 1)
-  const [showStats, setShowStats] = useState(false)
+  // Create Activity Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [newActivityName, setNewActivityName] = useState('')
+  const [newActivityDay, setNewActivityDay] = useState<number>(1)
+  const [newActivityTime, setNewActivityTime] = useState('16:00')
+  const [newActivityDescription, setNewActivityDescription] = useState('')
+  const [newActivityBudget, setNewActivityBudget] = useState('800.00')
 
-  // Day 1 Items (Matches Image 2 & 3 + Image 1 debate functionalities)
-  const [day1Items] = useState<TimelineSlotItem[]>([
+  // Day 1 Items
+  const [day1Items, setDay1Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_b94582f9',
       time: '09:00',
@@ -69,19 +74,8 @@ export const TripHomeScreen: React.FC = () => {
       duration: '180m',
     },
     {
-      itmId: 'itm_04_prop',
-      time: '17:30',
-      title: 'Backwater Sunset Shack & Dinner',
-      status: 'PROPOSED',
-      description: 'Fresh seafood dinner proposal submitted by group member; awaiting poll opening.',
-      cost: '500.00',
-      currency: '₹',
-      type: 'Dining / Leisure',
-      duration: '90m',
-    },
-    {
       itmId: 'itm_empty_1',
-      time: '20:00',
+      time: '19:00',
       title: 'No activity planned yet',
       status: 'UNASSIGNED',
       description: 'No activity planned yet for this slot.',
@@ -89,7 +83,7 @@ export const TripHomeScreen: React.FC = () => {
   ])
 
   // Day 2 Items
-  const [day2Items] = useState<TimelineSlotItem[]>([
+  const [day2Items, setDay2Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_04',
       time: '09:30',
@@ -135,7 +129,7 @@ export const TripHomeScreen: React.FC = () => {
   ])
 
   // Day 3 Items
-  const [day3Items] = useState<TimelineSlotItem[]>([
+  const [day3Items, setDay3Items] = useState<TimelineSlotItem[]>([
     {
       itmId: 'itm_07',
       time: '10:00',
@@ -201,10 +195,50 @@ export const TripHomeScreen: React.FC = () => {
     }
   }
 
+  // Handle Create Activity
+  const handleCreateActivity = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!newActivityName.trim()) {
+      addToast('Please enter an activity name', 'conflict')
+      return
+    }
+
+    const newItem: TimelineSlotItem = {
+      itmId: `itm_${Date.now()}`,
+      time: newActivityTime || '16:00',
+      title: newActivityName.trim(),
+      status: 'PROPOSED',
+      description: newActivityDescription.trim() || 'Custom activity proposed by group member.',
+      cost: newActivityBudget.trim() || '0.00',
+      currency: '₹',
+      type: 'Activity',
+      duration: '60m',
+    }
+
+    if (newActivityDay === 1) {
+      setDay1Items((prev) => [...prev, newItem].sort((a, b) => a.time.localeCompare(b.time)))
+    } else if (newActivityDay === 2) {
+      setDay2Items((prev) => [...prev, newItem].sort((a, b) => a.time.localeCompare(b.time)))
+    } else {
+      setDay3Items((prev) => [...prev, newItem].sort((a, b) => a.time.localeCompare(b.time)))
+    }
+
+    setActiveDay(newActivityDay)
+    addToast(`Activity "${newItem.title}" created for Day ${newActivityDay}!`, 'success')
+
+    // Reset & Close
+    setNewActivityName('')
+    setNewActivityDescription('')
+    setNewActivityBudget('800.00')
+    setNewActivityTime('16:00')
+    setIsCreateModalOpen(false)
+  }
+
   return (
     <PageWrapper trpId={trpId} tripTitle="Goa Getaway">
       <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-20">
-        {/* 1. Governance & Role Sub-Banner (Matches Image 2 & 3) */}
+        {/* 1. Governance & Role Sub-Banner (Stats removed as requested) */}
         <div className="bg-card border border-slate-light rounded-xl px-5 py-3 flex flex-wrap items-center justify-between shadow-xs gap-3">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-slate font-medium">Governance Mode:</span>
@@ -217,33 +251,8 @@ export const TripHomeScreen: React.FC = () => {
             <span className="font-mono text-xs text-slate font-medium">
               Role: <strong className="text-ink font-semibold">Owner (Admin)</strong>
             </span>
-            <button
-              type="button"
-              onClick={() => setShowStats(!showStats)}
-              className="text-xs font-mono text-route hover:underline"
-            >
-              {showStats ? 'Hide Stats ▲' : 'Trip Stats ▼'}
-            </button>
           </div>
         </div>
-
-        {/* Collapsible Stats Box from Image 1 (Total Cost, Carbon, Members) */}
-        {showStats && (
-          <div className="bg-card border border-slate-light rounded-xl p-4 shadow-xs grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-200">
-            <div className="flex flex-col">
-              <span className="text-[11px] font-mono uppercase text-slate">Estimated Total Cost</span>
-              <span className="text-xl font-mono font-bold text-ink mt-0.5">INR 8,450.00</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[11px] font-mono uppercase text-slate">Carbon Footprint</span>
-              <span className="text-xl font-mono font-bold text-emerald-700 mt-0.5">6.5 kg CO₂</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[11px] font-mono uppercase text-slate">Trip Members</span>
-              <span className="text-xs font-mono text-ink mt-1">usr_02b (editor) · usr_33d · Nikitha (owner)</span>
-            </div>
-          </div>
-        )}
 
         {/* 2. Trip Title & Dates Header (Centered, Matches Image 2 & 3) */}
         <div className="flex flex-col items-center justify-center text-center gap-1 pt-2">
@@ -259,7 +268,7 @@ export const TripHomeScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveDay(1)}
-              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all ${
+              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all cursor-pointer ${
                 activeDay === 1
                   ? 'bg-route text-card font-semibold shadow-xs'
                   : 'text-slate hover:text-ink font-medium hover:bg-paper'
@@ -271,7 +280,7 @@ export const TripHomeScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveDay(2)}
-              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all ${
+              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all cursor-pointer ${
                 activeDay === 2
                   ? 'bg-route text-card font-semibold shadow-xs'
                   : 'text-slate hover:text-ink font-medium hover:bg-paper'
@@ -283,7 +292,7 @@ export const TripHomeScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveDay(3)}
-              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all ${
+              className={`text-xs sm:text-sm px-4 py-1.5 rounded-[6px] font-sans transition-all cursor-pointer ${
                 activeDay === 3
                   ? 'bg-route text-card font-semibold shadow-xs'
                   : 'text-slate hover:text-ink font-medium hover:bg-paper'
@@ -294,8 +303,29 @@ export const TripHomeScreen: React.FC = () => {
           </div>
         </div>
 
+        {/* Top-Right Header Bar Above Activities: "Create Activity" Button */}
+        <div className="flex items-center justify-between pt-3 pb-1 border-b border-slate-light/60">
+          <div className="flex items-center gap-2">
+            <span className="font-serif text-lg font-bold text-ink">
+              Day {activeDay} Itinerary
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setNewActivityDay(activeDay)
+              setIsCreateModalOpen(true)
+            }}
+            className="bg-route text-card font-sans font-semibold text-xs px-4 py-2 rounded-[8px] hover:opacity-95 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>+</span>
+            <span>Create Activity</span>
+          </button>
+        </div>
+
         {/* 4. Timeline View Container (Matches Image 2 & 3 Layout) */}
-        <div className="flex flex-col mt-4">
+        <div className="flex flex-col mt-2">
           {currentItems.map((slot, idx) => {
             const isLast = idx === currentItems.length - 1
             const isUnassigned = slot.status === 'UNASSIGNED'
@@ -371,7 +401,7 @@ export const TripHomeScreen: React.FC = () => {
                             setActiveSlotName(`Day ${activeDay} - ${slot.time} Slot`)
                             setIsProposeOpen(true)
                           }}
-                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1"
+                          className="text-xs font-mono font-semibold text-route hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <span>+ Propose Activity</span>
                         </button>
@@ -401,7 +431,118 @@ export const TripHomeScreen: React.FC = () => {
           })}
         </div>
 
-        {/* Modal for Proposing / Adding New Activity Slot */}
+        {/* Modal for Creating New Activity (Activity details, day, time, 1-line description, budget) */}
+        {isCreateModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-card border border-slate-light rounded-[16px] max-w-lg w-full p-6 shadow-xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-start justify-between border-b border-slate-light pb-3">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-ink">
+                    Create New Activity
+                  </h3>
+                  <p className="font-sans text-xs text-slate mt-0.5">
+                    Add a new activity to your group trip timeline.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="text-slate hover:text-ink text-xl font-bold cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateActivity} className="flex flex-col gap-3.5">
+                {/* 1. Activity Name */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-mono text-slate font-medium">Activity Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Sunset Kayaking at Palolem Beach"
+                    value={newActivityName}
+                    onChange={(e) => setNewActivityName(e.target.value)}
+                    className="bg-paper border border-slate-light rounded-md px-3.5 py-2 text-xs text-ink focus:outline-none focus:border-route"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* 2. What Day of the Trip */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-mono text-slate font-medium">What Day of the Trip?</label>
+                    <select
+                      value={newActivityDay}
+                      onChange={(e) => setNewActivityDay(Number(e.target.value))}
+                      className="bg-paper border border-slate-light rounded-md px-3 py-2 text-xs text-ink focus:outline-none focus:border-route"
+                    >
+                      <option value={1}>Day 1: Arrival</option>
+                      <option value={2}>Day 2: Beach</option>
+                      <option value={3}>Day 3: Explore</option>
+                    </select>
+                  </div>
+
+                  {/* 3. Time */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-mono text-slate font-medium">Time</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 16:30 or 04:30 PM"
+                      value={newActivityTime}
+                      onChange={(e) => setNewActivityTime(e.target.value)}
+                      className="bg-paper border border-slate-light rounded-md px-3 py-2 text-xs text-ink focus:outline-none focus:border-route"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. 1-line Description */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-mono text-slate font-medium">1-Line Description</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Guided paddle through calm coastal waters to watch the sunset."
+                    value={newActivityDescription}
+                    onChange={(e) => setNewActivityDescription(e.target.value)}
+                    className="bg-paper border border-slate-light rounded-md px-3.5 py-2 text-xs text-ink focus:outline-none focus:border-route"
+                  />
+                </div>
+
+                {/* 5. Budget */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-mono text-slate font-medium">Budget / Estimated Cost (INR ₹)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 800.00"
+                    value={newActivityBudget}
+                    onChange={(e) => setNewActivityBudget(e.target.value)}
+                    className="bg-paper border border-slate-light rounded-md px-3.5 py-2 text-xs text-ink focus:outline-none focus:border-route"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-light">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="text-xs px-4 py-2 border border-slate-light rounded-md text-slate hover:bg-paper cursor-pointer font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="text-xs px-4 py-2 bg-route text-card rounded-md font-semibold hover:opacity-95 shadow-xs cursor-pointer"
+                  >
+                    Create Activity
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Existing Propose Activity Modal for slot */}
         <ProposeActivityModal
           isOpen={isProposeOpen}
           onClose={() => setIsProposeOpen(false)}

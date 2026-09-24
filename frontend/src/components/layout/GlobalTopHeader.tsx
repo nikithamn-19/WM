@@ -69,16 +69,17 @@ export const GlobalTopHeader: React.FC<GlobalTopHeaderProps> = ({
             >
               Plan
             </Link>
-            <Link
-              to={`/trips/${trpId}/slots/itm_b94582f9`}
-              className={`font-sans text-sm sm:text-base font-semibold transition-all py-1 border-b-2 ${
+            {/* Propose & Resolve: Unclickable as View Debate option on each activity directs to debate page */}
+            <span
+              title="Access debate via 'View Debate' on each activity in Plan"
+              className={`font-sans text-sm sm:text-base font-semibold py-1 border-b-2 cursor-default select-none ${
                 location.pathname.includes('/branches') || location.pathname.includes('/slots')
                   ? 'border-route text-route'
-                  : 'border-transparent text-slate hover:text-ink'
+                  : 'border-transparent text-slate/60'
               }`}
             >
               Propose &amp; Resolve
-            </Link>
+            </span>
             <Link
               to={`/trips/${trpId}/chat`}
               className={`font-sans text-sm sm:text-base font-semibold transition-all py-1 border-b-2 ${
