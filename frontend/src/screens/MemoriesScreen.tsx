@@ -7,7 +7,7 @@ import { Modal } from '../components/ui/Modal'
 import { FaceRegistration } from '../components/face/FaceRegistration'
 import { useTripContext } from '../context/TripContext'
 import { useAuthContext } from '../context/AuthContext'
-import { getMemoriesBoards, getFaceStatus, uploadTripPhoto, getTripPhotos } from '../lib/api'
+import { getMemoriesBoards, getFaceStatus, uploadTripPhoto } from '../lib/api'
 
 export interface MemoryPhotoItem {
   id: string
@@ -105,7 +105,7 @@ export const MemoriesScreen: React.FC = () => {
   // Fetch real trip memories from backend on mount and when trpId changes
   const fetchMemories = useCallback(async () => {
     try {
-      const data = await getMemoriesBoards(trpId, getToken)
+      const data = await getMemoriesBoards(trpId, user?.usrId, getToken)
       if (data && data.boards) {
         const backendPhotos: MemoryPhotoItem[] = (data.boards.all || []).map((p: any) => ({
           id: p.phoId || p.photo_id,

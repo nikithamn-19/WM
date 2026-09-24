@@ -1,5 +1,6 @@
 export interface User {
   usrId: string
+  id?: string
   displayName: string
   email: string
   homeCityId: string

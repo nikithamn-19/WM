@@ -5,6 +5,7 @@ import { getMe } from '../lib/api'
 
 interface AuthContextValue {
   currentUser: User | null
+  user: User | null
   getToken: () => Promise<string | null>
   isLoaded: boolean
   isOnboarded: boolean
@@ -115,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       currentUser = {
         usrId: userId,
+        id: userId,
         displayName: dbUser?.displayName || clerkUser?.fullName || clerkUser?.firstName || 'Wanderer',
         email: dbUser?.email || clerkUser?.primaryEmailAddress?.emailAddress || 'user@example.com',
         homeCityId: dbUser?.homeCityId || 'cty_bali',
@@ -154,6 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         currentUser,
+        user: currentUser,
         getToken,
         isLoaded: clerkLoaded && dbLoaded,
         isOnboarded,

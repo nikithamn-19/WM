@@ -115,6 +115,18 @@ export async function createTrip(
   }, getToken)
 }
 
+// PATCH update trip
+export async function updateTrip(
+  trpId: string,
+  data: Partial<Trip>,
+  getToken?: () => Promise<string | null>
+): Promise<Trip> {
+  return apiFetch<Trip>(`/api/trips/${trpId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }, getToken)
+}
+
 // POST create proposal
 export async function createProposal(
   body: CreateProposalInput,
