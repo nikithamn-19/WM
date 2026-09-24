@@ -15,12 +15,16 @@ def _synthesize_compromise_offline(
     objections: List[str],
     destination: str,
     currency: str = "USD",
+    alternative_proposals: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Intelligent semantic compromise synthesizer used when LLM is offline or for instant fallback.
     Maps conflicting desires into concrete, real-world compromise activities.
     """
-    all_text = f"{original_title} {original_rationale} {' '.join(objections)}".lower()
+    alt_text = ""
+    if alternative_proposals:
+        alt_text = " ".join(f"{ap.get('title', '')} {ap.get('rationale', '')}" for ap in alternative_proposals)
+    all_text = f"{original_title} {original_rationale} {' '.join(objections)} {alt_text}".lower()
     is_goa = "goa" in destination.lower() or "baga" in all_text or "anjuna" in all_text
 
     # 1. Beach/Water + Amusement Park / Thrill Rides -> Waterpark
@@ -190,9 +194,10 @@ def generate_blended_plan(
     itinerary_item: Dict[str, Any],
     trip_context: Dict[str, Any],
     current_round: int = 1,
+    alternative_proposals: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
-    Generates EXACTLY ONE blended compromise plan incorporating NO objections.
+    Generates EXACTLY ONE blended compromise plan incorporating NO objections and alternative proposals.
     Validates against hard constraints and raises ValueError if unable to satisfy constraints after retry.
     """
     destination = trip_context.get("destination_city", trip_context.get("destination", "Destination"))
@@ -206,16 +211,29 @@ def generate_blended_plan(
 
     comments_block = "\n".join(f"- {c}" for c in objections) if objections else "- General preference for variation"
 
+    alt_text_parts = []
+    if alternative_proposals:
+        for ap in alternative_proposals:
+            p_title = ap.get("title", "")
+            p_rat = ap.get("rationale", "")
+            p_user = ap.get("proposed_by_user_id", "member")
+            if p_title:
+                alt_text_parts.append(f'- "{p_title}" proposed by {p_user} (Reason: {p_rat})')
+
+    alt_block = ""
+    if alt_text_parts:
+        alt_block = "\nAlternative activities proposed by group members for this slot:\n" + "\n".join(alt_text_parts) + "\n"
+
     user_message = f"""
-Current proposed activity: "{current_proposal.get('title', 'Activity')}"
+Current base activity: "{current_proposal.get('title', 'Activity')}"
 Rationale: {current_proposal.get('rationale', 'No rationale provided')}
 Destination City: {destination}
 Round: {current_round}
-
-NO-voter objections and suggestions:
+{alt_block}
+Member objections and suggestions from NO votes:
 {comments_block}
 
-CRITICAL REQUIREMENT: Recommend an ACTUAL, REAL-LIFE, EXISTING spot, restaurant, market, or attraction located in {destination} that reconciles these preferences. Do NOT invent a fictional or made-up name.
+CRITICAL REQUIREMENT: Recommend an ACTUAL, REAL-LIFE, EXISTING spot, restaurant, market, or attraction located in {destination} that reconciles the base activity, the members' alternative proposals, and all member objections. Do NOT invent a fictional or made-up name.
 """
 
     fallback_plan = _synthesize_compromise_offline(
@@ -224,6 +242,7 @@ CRITICAL REQUIREMENT: Recommend an ACTUAL, REAL-LIFE, EXISTING spot, restaurant,
         objections=objections,
         destination=destination,
         currency=currency,
+        alternative_proposals=alternative_proposals,
     )
 
     def _dynamic_fallback(_):
@@ -233,6 +252,7 @@ CRITICAL REQUIREMENT: Recommend an ACTUAL, REAL-LIFE, EXISTING spot, restaurant,
             objections=objections,
             destination=destination,
             currency=currency,
+            alternative_proposals=alternative_proposals,
         )
 
     raw_plan = safe_llm_call(
