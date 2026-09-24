@@ -9,6 +9,7 @@ class CreateTripPhase1Input(BaseModel):
     endDate: date
     partySize: int
     mode: str  # 'Mode A' | 'Mode NA'
+    visibility: Optional[str] = "public"  # 'public' | 'private'
     notes: Optional[str] = None
     saveAsDraft: bool = False  # True = status='draft', False = status='planning'
 
@@ -33,6 +34,7 @@ class TripUpdateInput(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     mode: Optional[str] = None
+    visibility: Optional[str] = None
 
 class TripResponse(BaseModel):
     trpId: str
@@ -63,5 +65,15 @@ class JoinRequestResponse(BaseModel):
 class JoinByCodeInput(BaseModel):
     code: str
     message: Optional[str] = None
+
+class ChatMessageInput(BaseModel):
+    content: str
+    isProposal: bool = False
+    proposalRefId: Optional[str] = None
+
+class PhotoCreateInput(BaseModel):
+    photoUrl: str
+    caption: Optional[str] = None
+    folder: Optional[str] = None
 
 

@@ -1,19 +1,94 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useSignIn } from '@clerk/clerk-react'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
+import { useAuthContext } from '../context/AuthContext'
+import { loginUser } from '../lib/api'
 
 export const LoginScreen: React.FC = () => {
   const navigate = useNavigate()
+  const { signInLocal } = useAuthContext()
+
+  let signIn: any = null
+  let isSignInLoaded = false
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const clerkSignIn = useSignIn()
+    signIn = clerkSignIn.signIn
+    isSignInLoaded = clerkSignIn.isLoaded
+  } catch {
+    // Fallback if Clerk context is inactive
+  }
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
-  const handleDevSignIn = (e: React.FormEvent) => {
+  const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    navigate('/trips')
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail) {
+      setErrorMsg('Please enter your email address.')
+      return
+    }
+
+    setLoading(true)
+    setErrorMsg('')
+    try {
+      const res = await loginUser({ email: cleanEmail, password })
+      if (res?.usrId) {
+        await signInLocal(res.usrId)
+        navigate('/trips')
+      } else {
+        setErrorMsg('Account not found for this email. Please click "Create Account / Sign Up" below.')
+      }
+    } catch (err: any) {
+      const msg = err.message || ''
+      if (msg.includes('404') || msg.includes('not found') || msg.includes('Sign Up')) {
+        setErrorMsg(`No account found for "${cleanEmail}". Please click "Create Account / Sign Up" below to register.`)
+      } else {
+        setErrorMsg('Login failed. Please check your credentials or click Sign Up to create an account.')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const handleGoogleSignIn = async () => {
+    if (isSignInLoaded && signIn) {
+      try {
+        await signIn.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/sso-callback',
+          redirectUrlComplete: '/trips',
+        })
+        return
+      } catch (err) {
+        console.warn('Clerk OAuth sign in error:', err)
+      }
+    }
+
+    const cleanEmail = email.trim().toLowerCase() || 'google_user@example.com'
+    setLoading(true)
+    setErrorMsg('')
+    try {
+      const res = await loginUser({ email: cleanEmail })
+      if (res?.usrId) {
+        await signInLocal(res.usrId)
+        navigate('/trips')
+      } else {
+        setErrorMsg('Google Account not registered yet. Please click Sign Up to create your account.')
+      }
+    } catch (err: any) {
+      setErrorMsg('Google login requires account registration. Please click Sign Up to create your profile.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
 
   return (
     <PageWrapper hideSidebar={true}>
@@ -23,14 +98,20 @@ export const LoginScreen: React.FC = () => {
           WanderMatch
         </h1>
 
-        {/* Login Card (PDF Page 3 Design) */}
+        {/* Login Card */}
         <div className="w-full max-w-md bg-card border border-slate-light p-8 rounded-[12px] shadow-sm flex flex-col gap-6">
           <div className="text-center flex flex-col gap-1">
             <h2 className="font-serif text-2xl font-bold text-ink">Welcome Back</h2>
-            <p className="font-sans text-xs text-slate">Continue your journey.</p>
+            <p className="font-sans text-xs text-slate">Log in to access your trip dashboard &amp; explore companions.</p>
           </div>
 
-          <form onSubmit={handleDevSignIn} className="flex flex-col gap-4">
+          {errorMsg && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-md font-sans">
+              {errorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSignInSubmit} className="flex flex-col gap-4">
             <Input
               label="Email Address"
               type="email"
@@ -57,8 +138,8 @@ export const LoginScreen: React.FC = () => {
               />
             </div>
 
-            <Button type="submit" className="py-3 mt-2 font-semibold text-sm">
-              Log In
+            <Button type="submit" disabled={loading} className="py-3 mt-2 font-semibold text-sm">
+              {loading ? 'Logging in...' : 'Log In'}
             </Button>
           </form>
 
@@ -70,7 +151,7 @@ export const LoginScreen: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => navigate('/trips')}
+            onClick={handleGoogleSignIn}
             className="flex items-center justify-center gap-2 py-2.5 px-4 bg-paper border border-slate-light hover:border-route rounded-[10px] text-xs font-sans font-medium text-ink transition-all min-h-[44px]"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -96,8 +177,8 @@ export const LoginScreen: React.FC = () => {
 
           <div className="text-center text-xs font-sans text-slate pt-2 border-t border-slate-light/60">
             Don't have an account?{' '}
-            <Link to="/onboarding" className="text-route font-bold hover:underline">
-              Sign Up
+            <Link to="/sign-up" className="text-route font-bold hover:underline">
+              Create Account / Sign Up
             </Link>
           </div>
         </div>
@@ -105,3 +186,4 @@ export const LoginScreen: React.FC = () => {
     </PageWrapper>
   )
 }
+

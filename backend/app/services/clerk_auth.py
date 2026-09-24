@@ -59,15 +59,51 @@ async def get_current_user(
 ) -> User:
     """
     Dependency: verify JWT -> look up user row in DB -> return User ORM object.
-    Raises 401 if token invalid, 404 if user not synced yet.
+    Strictly maps clerk_user_id to local User record. Auto-provisions isolated user row if missing.
     """
     user = db.query(User).filter(User.user_id == clerk_user_id).first()
+    if not user and "@" in clerk_user_id:
+        user = db.query(User).filter(User.email == clerk_user_id.lower().strip()).first()
     
-    # Dev fallback to first user in DB if clerk_user_id is generic
-    if not user:
-        user = db.query(User).first()
+    # Auto-provision user record for new authenticated Clerk identity if missing
+    if not user and clerk_user_id:
+        from ..models import UserPreference
+        from ..utils import generate_id
         
+        email_val = clerk_user_id if "@" in clerk_user_id else f"{clerk_user_id}@example.com"
+        display_val = clerk_user_id.split("@")[0] if "@" in clerk_user_id else "Traveler"
+        
+        user = User(
+            user_id=clerk_user_id,
+            display_name=display_val,
+            email=email_val,
+            home_city_id="cty_bali",
+            home_currency="USD",
+            locale="en",
+            budget_band="mid",
+            travel_style="comfort",
+            traveller_type="friends",
+            segment="light",
+            status="active",
+        )
+        db.add(user)
+        
+        # Also create initial preferences record
+        prefs = UserPreference(
+            preference_id=generate_id("prf_"),
+            user_id=clerk_user_id,
+            preferred_languages="English",
+            interests="Heritage,Food,Trekking",
+            pace="relaxed",
+            age=25,
+            age_group="25-30",
+        )
+        db.add(prefs)
+        db.commit()
+        db.refresh(user)
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found — please complete sign-up")
         
     return user
+

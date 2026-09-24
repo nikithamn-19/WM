@@ -5,10 +5,13 @@ import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { FaceCapture } from '../components/face/FaceCapture'
 import { useTripContext } from '../context/TripContext'
+import { useAuthContext } from '../context/AuthContext'
+import { registerUser } from '../lib/api'
 
 export const OnboardingScreen: React.FC = () => {
   const navigate = useNavigate()
   const { addToast } = useTripContext()
+  const { signInLocal } = useAuthContext()
 
   // Step 1: Details
   const [fullName, setFullName] = useState('Jane Doe')
@@ -54,15 +57,38 @@ export const OnboardingScreen: React.FC = () => {
     )
   }
 
-  const handleRegisterFaceAndComplete = () => {
+  const saveAndComplete = async () => {
+    const cleanEmail = email.trim().toLowerCase() || `onboarding_${Date.now()}@example.com`
+    const cleanName = fullName.trim() || 'New Wanderer'
+    try {
+      const res = await registerUser({
+        displayName: cleanName,
+        email: cleanEmail,
+        age: parseInt(age) || 25,
+        languages: selectedLanguages,
+        interests: selectedPreferences,
+      })
+      if (res?.usrId) {
+        await signInLocal(res.usrId)
+      }
+    } catch (err) {
+      console.warn('Onboarding save exception:', err)
+    }
+  }
+
+
+  const handleRegisterFaceAndComplete = async () => {
+    await saveAndComplete()
     addToast('Travel style & face profile saved!', 'success')
     navigate('/trips')
   }
 
-  const handleSkipFaceAndComplete = () => {
+  const handleSkipFaceAndComplete = async () => {
+    await saveAndComplete()
     addToast('Onboarding completed!', 'info')
     navigate('/trips')
   }
+
 
   return (
     <PageWrapper hideSidebar>

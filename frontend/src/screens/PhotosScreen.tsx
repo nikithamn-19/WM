@@ -8,7 +8,8 @@ import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { FaceRegistration } from '../components/face/FaceRegistration'
 import { useTripContext } from '../context/TripContext'
-import { getTrip } from '../lib/api'
+import { apiFetch, getTrip } from '../lib/api'
+import { useAuthContext } from '../context/AuthContext'
 import type { Trip } from '../types/trip'
 
 export interface PhotoItem {
@@ -24,45 +25,17 @@ export interface PhotoItem {
 export const PhotosScreen: React.FC = () => {
   const { trpId } = useParams<{ trpId: string }>()
   const { addToast } = useTripContext()
+  const { getToken } = useAuthContext()
 
   const [trip, setTrip] = useState<Trip | null>(null)
   const [folders, setFolders] = useState<string[]>([
     'All Photos',
-    'Arrival & Calangute Resort',
-    'Baga Beach & Water Sports',
-    'Dudhsagar Trek & Spice Trail',
+    'General Gallery',
   ])
   const [selectedFolder, setSelectedFolder] = useState<string>('All Photos')
 
-  const [photos, setPhotos] = useState<PhotoItem[]>([
-    {
-      id: 'p1',
-      folder: 'Arrival & Calangute Resort',
-      title: 'Resort Check-in & Pool View',
-      caption: 'Settled into our beach resort in Calangute Goa!',
-      url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
-      uploadedBy: 'Alex Chen',
-      timestamp: 'Oct 10, 2026',
-    },
-    {
-      id: 'p2',
-      folder: 'Dudhsagar Trek & Spice Trail',
-      title: 'Dudhsagar Waterfalls View',
-      caption: 'Breathtaking lush green waterfalls & jungle jeep trek.',
-      url: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80',
-      uploadedBy: 'Priya Sharma',
-      timestamp: 'Oct 11, 2026',
-    },
-    {
-      id: 'p3',
-      folder: 'Baga Beach & Water Sports',
-      title: 'Anjuna Beach Shack Sunset & Seafood',
-      caption: 'Delicious fresh grilled kingfish & sunset vibes at Britto’s.',
-      url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
-      uploadedBy: 'Dev Patel',
-      timestamp: 'Oct 12, 2026',
-    },
-  ])
+  const [photos, setPhotos] = useState<PhotoItem[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false)
@@ -73,17 +46,42 @@ export const PhotosScreen: React.FC = () => {
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadCaption, setUploadCaption] = useState('')
   const [uploadUrl, setUploadUrl] = useState('')
-  const [uploadFolderTarget, setUploadFolderTarget] = useState('Arrival & Villa')
+  const [uploadFolderTarget, setUploadFolderTarget] = useState('General Gallery')
 
   // New Folder Form State
   const [newFolderName, setNewFolderName] = useState('')
 
+  const fetchPhotos = async () => {
+    if (!trpId) return
+    setIsLoading(true)
+    try {
+      const data = await apiFetch<any[]>(`/api/trips/${trpId}/photos`, {}, getToken)
+      if (data) {
+        const mapped: PhotoItem[] = data.map((p) => ({
+          id: p.photoId,
+          folder: 'General Gallery',
+          title: 'Trip Memory',
+          caption: '',
+          url: p.photoUrl,
+          uploadedBy: p.uploaderName || 'Traveler',
+          timestamp: new Date(p.createdAt || Date.now()).toLocaleDateString(),
+        }))
+        setPhotos(mapped)
+      }
+    } catch {
+      setPhotos([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!trpId) return
-    getTrip(trpId, async () => null)
+    getTrip(trpId, getToken)
       .then((t) => setTrip(t))
       .catch(() => null)
-  }, [trpId])
+    fetchPhotos()
+  }, [trpId, getToken])
 
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault()
@@ -100,26 +98,35 @@ export const PhotosScreen: React.FC = () => {
     addToast(`Folder "${formatted}" created`, 'success')
   }
 
-  const handleUploadPhoto = (e: React.FormEvent) => {
+  const handleUploadPhoto = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!uploadTitle.trim() || !uploadUrl.trim()) return
+    if (!uploadUrl.trim() || !trpId) return
 
-    const newPhoto: PhotoItem = {
-      id: `p_${Date.now()}`,
-      folder: uploadFolderTarget,
-      title: uploadTitle.trim(),
-      caption: uploadCaption.trim(),
-      url: uploadUrl.trim(),
-      uploadedBy: 'Alex Chen',
-      timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    try {
+      const res = await apiFetch(`/api/trips/${trpId}/photos`, {
+        method: 'POST',
+        body: JSON.stringify({ photoUrl: uploadUrl.trim() }),
+      }, getToken)
+
+      const newPhoto: PhotoItem = {
+        id: res.photoId,
+        folder: uploadFolderTarget,
+        title: uploadTitle.trim() || 'Trip Memory',
+        caption: uploadCaption.trim(),
+        url: res.photoUrl,
+        uploadedBy: res.uploaderName || 'Traveler',
+        timestamp: new Date().toLocaleDateString(),
+      }
+
+      setPhotos((prev) => [newPhoto, ...prev])
+      setIsUploadOpen(false)
+      setUploadTitle('')
+      setUploadCaption('')
+      setUploadUrl('')
+      addToast('Photo uploaded successfully!', 'success')
+    } catch (err: any) {
+      addToast('Failed to upload photo to backend', 'conflict')
     }
-
-    setPhotos((prev) => [newPhoto, ...prev])
-    setIsUploadOpen(false)
-    setUploadTitle('')
-    setUploadCaption('')
-    setUploadUrl('')
-    addToast('Photo uploaded successfully!', 'success')
   }
 
   const filteredPhotos =
@@ -138,6 +145,7 @@ export const PhotosScreen: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="font-serif text-3xl font-bold text-ink">Trip Photos</h1>
+            {isLoading && <p className="font-mono text-xs text-slate mt-1">Loading gallery photos...</p>}
           </div>
           <div className="flex gap-2">
             <Button
