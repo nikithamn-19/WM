@@ -63,6 +63,7 @@ export const MemoriesScreen: React.FC = () => {
   ]
 
   const [activeTab, setActiveTab] = useState<'all' | 'my'>('all')
+  const [openedFolder, setOpenedFolder] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState<string>('All')
   const [selectedFolder, setSelectedFolder] = useState<string>('All')
 
@@ -116,7 +117,11 @@ export const MemoriesScreen: React.FC = () => {
   }
 
   const handleDownloadAll = () => {
-    addToast(`Downloading all ${photos.length} high-res trip photos...`, 'success')
+    const targetPhotos =
+      activeTab === 'my' && openedFolder
+        ? photos.filter((p) => p.folder === openedFolder)
+        : photos
+    addToast(`Downloading ${targetPhotos.length} high-res trip photos...`, 'success')
   }
 
   const handleDownloadSelected = () => {
@@ -150,10 +155,12 @@ export const MemoriesScreen: React.FC = () => {
     }
     const updatedFolders = [...folders, name]
     setFolders(updatedFolders)
-    setSelectedFolder(name)
     setNewFolderName('')
     setIsNewFolderOpen(false)
     addToast(`Folder "${name}" created and saved!`, 'success')
+    if (activeTab === 'my') {
+      setOpenedFolder(name)
+    }
   }
 
   // Delete folder
@@ -171,6 +178,10 @@ export const MemoriesScreen: React.FC = () => {
       setSelectedFolder('All')
     }
 
+    if (openedFolder === folderName) {
+      setOpenedFolder(null)
+    }
+
     addToast(`Folder "${folderName}" deleted successfully!`, 'success')
   }
 
@@ -178,7 +189,12 @@ export const MemoriesScreen: React.FC = () => {
     if (!e.target.files || e.target.files.length === 0) return
     const filesArray = Array.from(e.target.files)
 
-    const targetFolder = selectedFolder === 'All' ? 'Arrival & Resort' : selectedFolder
+    const targetFolder =
+      activeTab === 'my' && openedFolder
+        ? openedFolder
+        : selectedFolder === 'All'
+        ? 'Arrival & Resort'
+        : selectedFolder
     const targetDay = selectedDay === 'All' ? 'Day 1' : selectedDay
 
     const newItemsPromises = filesArray.map((file, idx) => {
@@ -209,12 +225,103 @@ export const MemoriesScreen: React.FC = () => {
     fileInputRef.current?.click()
   }
 
-  const filteredPhotos = photos.filter((p) => {
+  // Filtered photos for 'All Photos' tab
+  const filteredAllPhotos = photos.filter((p) => {
     const matchesDay = selectedDay === 'All' || p.day === selectedDay
     const matchesFolder = selectedFolder === 'All' || p.folder === selectedFolder
-    const matchesTab = activeTab === 'all' || (activeTab === 'my' ? (p.isMyPhoto ?? true) : true)
-    return matchesDay && matchesFolder && matchesTab
+    return matchesDay && matchesFolder
   })
+
+  // Photos for currently opened folder in 'My Photos'
+  const photosInOpenedFolder = openedFolder
+    ? photos.filter((p) => p.folder === openedFolder)
+    : []
+
+  // Reusable compact Photo Card component
+  const renderPhotoCard = (photo: MemoryPhotoItem) => {
+    const isSelected = selectedPhotoIds.includes(photo.id)
+    return (
+      <div
+        key={photo.id}
+        onClick={() => toggleSelectPhoto(photo.id)}
+        className={`relative aspect-square rounded-[10px] overflow-hidden border cursor-pointer shadow-2xs group transition-all ${
+          isSelected ? 'border-route ring-2 ring-route' : 'border-slate-light hover:border-route'
+        }`}
+      >
+        <img
+          src={photo.url}
+          alt={photo.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+
+        {/* Delete Photo Button (Top-Left) */}
+        <div className="absolute top-1.5 left-1.5 z-10">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDeleteSingle(photo.id, photo.title)
+            }}
+            className="w-5.5 h-5.5 rounded-full bg-paper/90 hover:bg-rose-600 text-slate hover:text-white border border-slate-light/80 shadow-xs flex items-center justify-center transition-all cursor-pointer opacity-70 group-hover:opacity-100 hover:scale-110"
+            title="Delete photo"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-3 h-3"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Checkbox overlay (Top-Right) */}
+        <div className="absolute top-1.5 right-1.5 z-10">
+          <div
+            className={`w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold transition-all ${
+              isSelected
+                ? 'bg-route text-card border-route'
+                : 'bg-paper/80 border-slate-light text-transparent hover:border-slate'
+            }`}
+          >
+            ✓
+          </div>
+        </div>
+
+        {/* Hover Metadata Overlay */}
+        <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end text-card text-[11px] font-sans pointer-events-none">
+          <span className="font-bold truncate">{photo.title}</span>
+          <span className="font-mono text-[9px] text-card/80">{photo.day}</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Reusable + Add Photos Tile (Compact)
+  const renderAddTile = (subtitle: string = 'from Gallery') => (
+    <div
+      onClick={triggerUpload}
+      className="aspect-square rounded-[10px] border-2 border-dashed border-route/40 hover:border-route bg-route/5 hover:bg-route/10 flex flex-col items-center justify-center text-center p-2 cursor-pointer transition-all gap-1 group shadow-2xs"
+    >
+      <div className="w-8 h-8 rounded-full bg-route text-card font-mono text-base font-bold flex items-center justify-center group-hover:scale-110 transition-transform">
+        +
+      </div>
+      <span className="font-sans text-[11px] font-bold text-route">
+        Add Photos
+      </span>
+      <span className="font-mono text-[9px] text-slate">
+        {subtitle}
+      </span>
+    </div>
+  )
 
   return (
     <PageWrapper trpId={trpId} tripTitle="Goa Getaway">
@@ -234,7 +341,13 @@ export const MemoriesScreen: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-light">
             <div>
               <h2 className="font-serif text-2xl font-bold text-ink">Gallery</h2>
-              <p className="font-mono text-xs text-slate mt-0.5">{filteredPhotos.length} Photos displayed</p>
+              <p className="font-mono text-xs text-slate mt-0.5">
+                {activeTab === 'all'
+                  ? `${filteredAllPhotos.length} Photos displayed`
+                  : openedFolder
+                  ? `${photosInOpenedFolder.length} Photos in folder "${openedFolder}"`
+                  : `${folders.filter((f) => f !== 'All').length} Folders in My Photos`}
+              </p>
             </div>
 
             {/* Gallery Action Controls */}
@@ -274,185 +387,288 @@ export const MemoriesScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Gallery Subtabs & Filters inside Gallery section */}
-          <div className="flex flex-col gap-3">
-            {/* All Photos / My Photos tabs */}
-            <div className="flex items-center gap-6 border-b border-slate-light/60 pb-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('all')}
-                className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all cursor-pointer ${
-                  activeTab === 'all'
-                    ? 'border-route text-route'
-                    : 'border-transparent text-slate hover:text-ink'
-                }`}
-              >
-                All Photos
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('my')}
-                className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all cursor-pointer ${
-                  activeTab === 'my'
-                    ? 'border-route text-route'
-                    : 'border-transparent text-slate hover:text-ink'
-                }`}
-              >
-                My Photos
-              </button>
-            </div>
-
-            {/* Day & Folder Dropdown Filters + Folder Delete Option */}
-            <div className="flex flex-wrap items-center gap-4 pt-1">
-              <div className="flex items-center gap-2">
-                <label className="font-mono text-xs text-slate font-bold">Filter Day:</label>
-                <select
-                  value={selectedDay}
-                  onChange={(e) => setSelectedDay(e.target.value)}
-                  className="bg-paper border border-slate-light rounded-[8px] px-3 py-1.5 text-xs text-ink font-mono outline-none focus:border-route min-h-[36px]"
-                >
-                  {['All', 'Day 1', 'Day 2', 'Day 3', 'Day 4'].map((day) => (
-                    <option key={day} value={day}>
-                      {day === 'All' ? 'All Days' : day}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <label className="font-mono text-xs text-slate font-bold">Filter Folder:</label>
-                <select
-                  value={selectedFolder}
-                  onChange={(e) => setSelectedFolder(e.target.value)}
-                  className="bg-paper border border-slate-light rounded-[8px] px-3 py-1.5 text-xs text-ink font-sans outline-none focus:border-route min-h-[36px]"
-                >
-                  {folders.map((folder) => (
-                    <option key={folder} value={folder}>
-                      📁 {folder === 'All' ? 'All Folders' : folder}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Direct Delete Button for the Selected Folder */}
-                {selectedFolder !== 'All' && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteFolder(selectedFolder)}
-                    className="text-xs font-mono font-medium text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded-[8px] px-2.5 py-1.5 flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px] shadow-2xs"
-                    title={`Delete folder "${selectedFolder}"`}
-                  >
-                    <span>🗑</span>
-                    <span>Delete "{selectedFolder}"</span>
-                  </button>
-                )}
-              </div>
-            </div>
+          {/* Subtabs: All Photos vs My Photos */}
+          <div className="flex items-center gap-6 border-b border-slate-light/60 pb-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('all')
+                setOpenedFolder(null)
+              }}
+              className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all cursor-pointer ${
+                activeTab === 'all'
+                  ? 'border-route text-route'
+                  : 'border-transparent text-slate hover:text-ink'
+              }`}
+            >
+              All Photos
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('my')
+                setOpenedFolder(null)
+              }}
+              className={`font-mono text-xs font-bold pb-2 border-b-2 transition-all cursor-pointer ${
+                activeTab === 'my'
+                  ? 'border-route text-route'
+                  : 'border-transparent text-slate hover:text-ink'
+              }`}
+            >
+              My Photos
+            </button>
           </div>
 
-          {/* Photo Grid & Empty State */}
-          {filteredPhotos.length === 0 ? (
-            /* Empty State for Newly Created or Empty Folders */
-            <div className="p-10 border-2 border-dashed border-slate-light rounded-[16px] text-center flex flex-col items-center justify-center gap-4 bg-paper/30 my-4">
-              <div className="w-12 h-12 rounded-full bg-paper border border-slate-light text-slate flex items-center justify-center font-mono text-xl">
-                📁
-              </div>
-              <div>
-                <h3 className="font-serif text-lg font-bold text-ink">
-                  No photos attached yet
-                </h3>
-                <p className="font-sans text-xs text-slate mt-1 max-w-sm">
-                  {activeTab === 'my'
-                    ? 'No photos found in My Photos for this filter. Upload from your gallery to add memories here!'
-                    : `There are no photos in folder "${selectedFolder}". Upload photos from your gallery to add memories here!`}
-                </p>
-              </div>
-              <Button onClick={triggerUpload} className="py-2 px-5 text-xs font-semibold cursor-pointer">
-                + Add Photos from Gallery
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
-              {/* Instant + Add Photo Tile */}
-              <div
-                onClick={triggerUpload}
-                className="aspect-square rounded-[12px] border-2 border-dashed border-route/40 hover:border-route bg-route/5 hover:bg-route/10 flex flex-col items-center justify-center text-center p-4 cursor-pointer transition-all gap-2 group"
-              >
-                <div className="w-10 h-10 rounded-full bg-route text-card font-mono text-xl font-bold flex items-center justify-center group-hover:scale-110 transition-transform">
-                  +
-                </div>
-                <span className="font-sans text-xs font-bold text-route">
-                  Add Photos
-                </span>
-                <span className="font-mono text-[10px] text-slate">
-                  from Gallery
-                </span>
-              </div>
-
-              {/* Render Existing Photos */}
-              {filteredPhotos.map((photo) => {
-                const isSelected = selectedPhotoIds.includes(photo.id)
-                return (
-                  <div
-                    key={photo.id}
-                    onClick={() => toggleSelectPhoto(photo.id)}
-                    className={`relative aspect-square rounded-[12px] overflow-hidden border cursor-pointer shadow-xs group transition-all ${
-                      isSelected ? 'border-route ring-2 ring-route' : 'border-slate-light hover:border-route'
-                    }`}
+          {/* VIEW MODE 1: ALL PHOTOS (Filtered by Day & Folder, Smaller Compact Grid) */}
+          {activeTab === 'all' && (
+            <div className="flex flex-col gap-4">
+              {/* Day & Folder Dropdown Filters */}
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="font-mono text-xs text-slate font-bold">Filter Day:</label>
+                  <select
+                    value={selectedDay}
+                    onChange={(e) => setSelectedDay(e.target.value)}
+                    className="bg-paper border border-slate-light rounded-[8px] px-3 py-1.5 text-xs text-ink font-mono outline-none focus:border-route min-h-[36px]"
                   >
-                    <img
-                      src={photo.url}
-                      alt={photo.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                    {['All', 'Day 1', 'Day 2', 'Day 3', 'Day 4'].map((day) => (
+                      <option key={day} value={day}>
+                        {day === 'All' ? 'All Days' : day}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                    {/* Delete Photo Button (Top-Left) */}
-                    <div className="absolute top-2 left-2 z-10">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="font-mono text-xs text-slate font-bold">Filter Folder:</label>
+                  <select
+                    value={selectedFolder}
+                    onChange={(e) => setSelectedFolder(e.target.value)}
+                    className="bg-paper border border-slate-light rounded-[8px] px-3 py-1.5 text-xs text-ink font-sans outline-none focus:border-route min-h-[36px]"
+                  >
+                    {folders.map((folder) => (
+                      <option key={folder} value={folder}>
+                        📁 {folder === 'All' ? 'All Folders' : folder}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Direct Delete Button for Selected Folder */}
+                  {selectedFolder !== 'All' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFolder(selectedFolder)}
+                      className="text-xs font-mono font-medium text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded-[8px] px-2.5 py-1.5 flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px] shadow-2xs"
+                      title={`Delete folder "${selectedFolder}"`}
+                    >
+                      <span>🗑</span>
+                      <span>Delete "{selectedFolder}"</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Smaller Grid of Photos */}
+              {filteredAllPhotos.length === 0 ? (
+                <div className="p-10 border-2 border-dashed border-slate-light rounded-[16px] text-center flex flex-col items-center justify-center gap-4 bg-paper/30 my-4">
+                  <div className="w-12 h-12 rounded-full bg-paper border border-slate-light text-slate flex items-center justify-center font-mono text-xl">
+                    📁
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-lg font-bold text-ink">
+                      No photos attached yet
+                    </h3>
+                    <p className="font-sans text-xs text-slate mt-1 max-w-sm">
+                      There are no photos in folder "{selectedFolder}". Upload photos from your gallery to add memories here!
+                    </p>
+                  </div>
+                  <Button onClick={triggerUpload} className="py-2 px-5 text-xs font-semibold cursor-pointer">
+                    + Add Photos from Gallery
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 sm:gap-3 pt-2">
+                  {renderAddTile('from Gallery')}
+                  {filteredAllPhotos.map((photo) => renderPhotoCard(photo))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* VIEW MODE 2: MY PHOTOS (Displays Folders First, Then Photos on Folder Click) */}
+          {activeTab === 'my' && (
+            <div className="flex flex-col gap-4">
+              {!openedFolder ? (
+                /* FOLDERS VIEW: Displays ONLY folders */
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-slate font-bold uppercase tracking-wider">
+                      Folders ({folders.filter((f) => f !== 'All').length}):
+                    </span>
+                    <span className="font-sans text-xs text-slate">
+                      Click a folder to view and add photos
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 pt-1">
+                    {/* + Create New Folder Tile */}
+                    <div
+                      onClick={() => setIsNewFolderOpen(true)}
+                      className="aspect-square rounded-[12px] border-2 border-dashed border-route/40 hover:border-route bg-route/5 hover:bg-route/10 flex flex-col items-center justify-center text-center p-3 cursor-pointer transition-all gap-2 group shadow-2xs"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-route text-card font-mono text-xl font-bold flex items-center justify-center group-hover:scale-110 transition-transform">
+                        +
+                      </div>
+                      <span className="font-sans text-xs font-bold text-route">
+                        Create Folder
+                      </span>
+                      <span className="font-mono text-[10px] text-slate">
+                        New Album
+                      </span>
+                    </div>
+
+                    {/* Folder Cards */}
+                    {folders
+                      .filter((f) => f !== 'All')
+                      .map((folder) => {
+                        const folderPhotos = photos.filter((p) => p.folder === folder)
+                        const coverPhoto = folderPhotos[0]?.url
+
+                        return (
+                          <div
+                            key={folder}
+                            onClick={() => setOpenedFolder(folder)}
+                            className="group relative aspect-square rounded-[12px] border border-slate-light hover:border-route bg-card p-3 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between overflow-hidden"
+                          >
+                            {/* Folder Cover / Preview */}
+                            {coverPhoto ? (
+                              <div className="w-full flex-1 rounded-[8px] overflow-hidden mb-2 relative bg-paper min-h-[80px]">
+                                <img
+                                  src={coverPhoto}
+                                  alt={folder}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-70" />
+                                <span className="absolute bottom-1.5 left-2 text-white font-mono text-[10px] font-bold">
+                                  {folderPhotos.length} {folderPhotos.length === 1 ? 'photo' : 'photos'}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="w-full flex-1 rounded-[8px] bg-paper/80 border border-slate-light/60 flex flex-col items-center justify-center text-3xl mb-2 group-hover:scale-105 transition-transform min-h-[80px]">
+                                📁
+                                <span className="font-mono text-[10px] text-slate mt-1">Empty</span>
+                              </div>
+                            )}
+
+                            {/* Folder Title & Delete Button */}
+                            <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-light/60">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-sm">📁</span>
+                                <span
+                                  className="font-serif font-bold text-xs text-ink truncate"
+                                  title={folder}
+                                >
+                                  {folder}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteFolder(folder)
+                                }}
+                                className="w-6 h-6 rounded-full text-slate hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer shrink-0 opacity-60 group-hover:opacity-100"
+                                title={`Delete folder "${folder}"`}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="w-3.5 h-3.5"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              ) : (
+                /* INSIDE OPENED FOLDER: Displays photos in this specific folder */
+                <div className="flex flex-col gap-4">
+                  {/* Folder Breadcrumb & Navigation Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-light gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteSingle(photo.id, photo.title)
-                        }}
-                        className="w-7 h-7 rounded-full bg-paper/90 hover:bg-rose-600 text-slate hover:text-white border border-slate-light/80 shadow-xs flex items-center justify-center transition-all cursor-pointer opacity-75 group-hover:opacity-100 hover:scale-110"
-                        title="Delete photo"
+                        onClick={() => setOpenedFolder(null)}
+                        className="font-mono text-xs font-bold text-route hover:underline flex items-center gap-1 cursor-pointer bg-paper px-2.5 py-1.5 rounded-[6px] border border-slate-light/70 shadow-2xs"
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="w-3.5 h-3.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          <line x1="10" y1="11" x2="10" y2="17" />
-                          <line x1="14" y1="11" x2="14" y2="17" />
-                        </svg>
+                        <span>&larr;</span>
+                        <span>Back to Folders</span>
+                      </button>
+
+                      <span className="font-serif text-lg font-bold text-ink flex items-center gap-1.5 ml-1">
+                        <span>📁</span>
+                        <span>{openedFolder}</span>
+                      </span>
+                      <span className="font-mono text-xs text-slate">
+                        ({photosInOpenedFolder.length} photos)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={triggerUpload}
+                        className="text-xs px-3 py-1.5 min-h-[34px] cursor-pointer"
+                      >
+                        + Add Photos to Folder
+                      </Button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFolder(openedFolder)}
+                        className="text-xs font-mono text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded-[8px] px-2.5 py-1.5 flex items-center gap-1 transition-all cursor-pointer min-h-[34px]"
+                      >
+                        <span>🗑 Delete Folder</span>
                       </button>
                     </div>
-
-                    {/* Checkbox overlay (Top-Right) */}
-                    <div className="absolute top-2 right-2 z-10">
-                      <div
-                        className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all ${
-                          isSelected ? 'bg-route text-card border-route' : 'bg-paper/80 border-slate-light text-transparent hover:border-slate'
-                        }`}
-                      >
-                        ✓
-                      </div>
-                    </div>
-
-                    {/* Hover Metadata Overlay */}
-                    <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end text-card text-xs font-sans pointer-events-none">
-                      <span className="font-bold">{photo.title}</span>
-                      <span className="font-mono text-[10px] text-card/80">{photo.day}</span>
-                    </div>
                   </div>
-                )
-              })}
+
+                  {/* Photos Grid for this folder (in smaller size) */}
+                  {photosInOpenedFolder.length === 0 ? (
+                    <div className="p-10 border-2 border-dashed border-slate-light rounded-[16px] text-center flex flex-col items-center justify-center gap-4 bg-paper/30 my-4">
+                      <div className="w-12 h-12 rounded-full bg-paper border border-slate-light text-slate flex items-center justify-center font-mono text-xl">
+                        📁
+                      </div>
+                      <div>
+                        <h3 className="font-serif text-lg font-bold text-ink">
+                          Folder "{openedFolder}" is empty
+                        </h3>
+                        <p className="font-sans text-xs text-slate mt-1 max-w-sm">
+                          No photos have been added to this folder yet. Click below to add photos from your gallery!
+                        </p>
+                      </div>
+                      <Button onClick={triggerUpload} className="py-2 px-5 text-xs font-semibold cursor-pointer">
+                        + Add Photos to "{openedFolder}"
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 sm:gap-3 pt-1">
+                      {renderAddTile(`to ${openedFolder}`)}
+                      {photosInOpenedFolder.map((photo) => renderPhotoCard(photo))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
