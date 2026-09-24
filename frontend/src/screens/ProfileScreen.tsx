@@ -39,7 +39,7 @@ const DEFAULT_TRAVEL_PREFS: TravelPreferencesData = {
   budgetRange: 'mid',
   interests: ['Beach Sunsets', 'Heritage Walks', 'Photography', 'Coastal Food', 'Road Trips', 'Local Cafes'],
   furtherPreferences:
-    'Prefer vegetarian and coastal seafood options, scenic morning walks over late nights, boutique homestays or beach cabins, and budget around mid-range ($$).',
+    'Prefer vegetarian and coastal seafood options, scenic morning walks over late nights, boutique homestays or beach cabins, and budget around mid-range (₹₹).',
 }
 
 export const ProfileScreen: React.FC = () => {
@@ -99,6 +99,10 @@ export const ProfileScreen: React.FC = () => {
           ...DEFAULT_TRAVEL_PREFS,
           ...parsed,
           interests: Array.isArray(parsed.interests) && parsed.interests.length > 0 ? parsed.interests : existingInterests,
+          furtherPreferences: (parsed.furtherPreferences || DEFAULT_TRAVEL_PREFS.furtherPreferences)
+            .replace(/\(\$\$\$\)/g, '(₹₹₹)')
+            .replace(/\(\$\$\)/g, '(₹₹)')
+            .replace(/\(\$\)/g, '(₹)'),
         }
       } catch {
         // fallback
@@ -549,21 +553,21 @@ export const ProfileScreen: React.FC = () => {
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
                       {travelPrefs.budgetRange === 'budget'
-                        ? 'Budget ($)'
+                        ? 'Budget (₹)'
                         : travelPrefs.budgetRange === 'mid'
-                        ? 'Mid-Range ($$)'
+                        ? 'Mid-Range (₹₹)'
                         : travelPrefs.budgetRange === 'luxury'
-                        ? 'Luxury ($$$)'
+                        ? 'Luxury (₹₹₹)'
                         : 'Flexible'}
                     </span>
                   </div>
                   <h4 className="font-serif text-lg font-bold text-ink">
                     {travelPrefs.budgetRange === 'budget'
-                      ? 'Budget ($20–$50 / day)'
+                      ? 'Budget (₹1,500–₹4,000 / day)'
                       : travelPrefs.budgetRange === 'mid'
-                      ? 'Mid-Range ($50–$150 / day)'
+                      ? 'Mid-Range (₹4,000–₹12,000 / day)'
                       : travelPrefs.budgetRange === 'luxury'
-                      ? 'Luxury ($150+ / day)'
+                      ? 'Luxury (₹12,000+ / day)'
                       : 'Flexible / Destination-dependent'}
                   </h4>
                   <p className="font-sans text-xs text-slate leading-relaxed">
@@ -851,8 +855,8 @@ export const ProfileScreen: React.FC = () => {
                         className="mt-0.5 text-route focus:ring-route"
                       />
                       <div className="flex flex-col text-xs">
-                        <span className="font-bold text-ink">Budget ($)</span>
-                        <span className="text-slate mt-0.5">$20–$50/day. Hostels &amp; public transit.</span>
+                        <span className="font-bold text-ink">Budget (₹)</span>
+                        <span className="text-slate mt-0.5">₹1,500–₹4,000/day. Hostels &amp; public transit.</span>
                       </div>
                     </label>
 
@@ -871,8 +875,8 @@ export const ProfileScreen: React.FC = () => {
                         className="mt-0.5 text-route focus:ring-route"
                       />
                       <div className="flex flex-col text-xs">
-                        <span className="font-bold text-ink">Mid-Range ($$)</span>
-                        <span className="text-slate mt-0.5">$50–$150/day. Cozy stays &amp; cafes.</span>
+                        <span className="font-bold text-ink">Mid-Range (₹₹)</span>
+                        <span className="text-slate mt-0.5">₹4,000–₹12,000/day. Cozy stays &amp; cafes.</span>
                       </div>
                     </label>
 
@@ -891,8 +895,8 @@ export const ProfileScreen: React.FC = () => {
                         className="mt-0.5 text-route focus:ring-route"
                       />
                       <div className="flex flex-col text-xs">
-                        <span className="font-bold text-ink">Luxury ($$$)</span>
-                        <span className="text-slate mt-0.5">$150+/day. Premium resorts &amp; private tours.</span>
+                        <span className="font-bold text-ink">Luxury (₹₹₹)</span>
+                        <span className="text-slate mt-0.5">₹12,000+/day. Premium resorts &amp; private tours.</span>
                       </div>
                     </label>
 
