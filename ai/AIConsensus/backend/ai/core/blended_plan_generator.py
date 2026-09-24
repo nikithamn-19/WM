@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from backend.ai.core.hard_constraint_validator import validate_plan
 from backend.ai.llm.client import safe_llm_call
