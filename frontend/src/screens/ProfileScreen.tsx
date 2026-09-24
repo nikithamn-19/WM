@@ -11,14 +11,15 @@ export interface UserProfileData {
   email: string
   homeCity: string
   bio: string
-  interests: string[]
 }
 
 export interface TravelPreferencesData {
-  ageGroupPreference: 'same_age' | 'all_ages' | 'custom'
+  ageGroupPreference: 'same_age' | 'all_ages'
   ageGroupLabel: string
   travelMode: 'mode_na' | 'mode_a' | 'both'
   tripType: 'group_only' | 'solo_matching' | 'both'
+  budgetRange: 'budget' | 'mid' | 'luxury' | 'flexible'
+  interests: string[]
   furtherPreferences: string
 }
 
@@ -28,7 +29,6 @@ const DEFAULT_PROFILE: UserProfileData = {
   email: 'nikitha@wandermatch.internal',
   homeCity: 'Bangalore, India',
   bio: 'Passionate wanderer exploring hidden coastlines, cultural trails, and mountain retreats. Believer in thoughtful group itineraries and slow travel.',
-  interests: ['Beach Sunsets', 'Heritage Walks', 'Photography', 'Coastal Food', 'Road Trips', 'Local Cafes'],
 }
 
 const DEFAULT_TRAVEL_PREFS: TravelPreferencesData = {
@@ -36,6 +36,8 @@ const DEFAULT_TRAVEL_PREFS: TravelPreferencesData = {
   ageGroupLabel: 'Prefer same age group (20–30 years)',
   travelMode: 'mode_na',
   tripType: 'both',
+  budgetRange: 'mid',
+  interests: ['Beach Sunsets', 'Heritage Walks', 'Photography', 'Coastal Food', 'Road Trips', 'Local Cafes'],
   furtherPreferences:
     'Prefer vegetarian and coastal seafood options, scenic morning walks over late nights, boutique homestays or beach cabins, and budget around mid-range ($$).',
 }
@@ -53,7 +55,14 @@ export const ProfileScreen: React.FC = () => {
     const saved = localStorage.getItem('wm_user_profile')
     if (saved) {
       try {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(saved)
+        return {
+          displayName: parsed.displayName || DEFAULT_PROFILE.displayName,
+          age: parsed.age || DEFAULT_PROFILE.age,
+          email: parsed.email || DEFAULT_PROFILE.email,
+          homeCity: parsed.homeCity || DEFAULT_PROFILE.homeCity,
+          bio: parsed.bio || DEFAULT_PROFILE.bio,
+        }
       } catch {
         // fallback
       }
@@ -65,26 +74,49 @@ export const ProfileScreen: React.FC = () => {
     }
   })
 
-  // Travel Preferences State
+  // Travel Preferences State (migrating interests if previously saved in profile)
   const [travelPrefs, setTravelPrefs] = useState<TravelPreferencesData>(() => {
     const saved = localStorage.getItem('wm_travel_preferences')
+    let existingInterests = DEFAULT_TRAVEL_PREFS.interests
+
+    // Check if user previously had interests stored in old profile
+    const oldProfileSaved = localStorage.getItem('wm_user_profile')
+    if (oldProfileSaved) {
+      try {
+        const oldP = JSON.parse(oldProfileSaved)
+        if (Array.isArray(oldP.interests) && oldP.interests.length > 0) {
+          existingInterests = oldP.interests
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     if (saved) {
       try {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(saved)
+        return {
+          ...DEFAULT_TRAVEL_PREFS,
+          ...parsed,
+          interests: Array.isArray(parsed.interests) && parsed.interests.length > 0 ? parsed.interests : existingInterests,
+        }
       } catch {
         // fallback
       }
     }
-    return DEFAULT_TRAVEL_PREFS
+    return {
+      ...DEFAULT_TRAVEL_PREFS,
+      interests: existingInterests,
+    }
   })
 
   // Edit Modes
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileForm, setProfileForm] = useState<UserProfileData>(profile)
-  const [newTagInput, setNewTagInput] = useState('')
 
   const [isEditingPrefs, setIsEditingPrefs] = useState(false)
   const [prefsForm, setPrefsForm] = useState<TravelPreferencesData>(travelPrefs)
+  const [newTagInput, setNewTagInput] = useState('')
 
   // Sync edits when state changes
   useEffect(() => {
@@ -114,19 +146,19 @@ export const ProfileScreen: React.FC = () => {
 
   const handleAddTag = () => {
     const trimmed = newTagInput.trim().replace(/^#/, '')
-    if (trimmed && !profileForm.interests.includes(trimmed)) {
-      setProfileForm({
-        ...profileForm,
-        interests: [...profileForm.interests, trimmed],
+    if (trimmed && !prefsForm.interests.includes(trimmed)) {
+      setPrefsForm({
+        ...prefsForm,
+        interests: [...prefsForm.interests, trimmed],
       })
       setNewTagInput('')
     }
   }
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setProfileForm({
-      ...profileForm,
-      interests: profileForm.interests.filter((t) => t !== tagToRemove),
+    setPrefsForm({
+      ...prefsForm,
+      interests: prefsForm.interests.filter((t) => t !== tagToRemove),
     })
   }
 
@@ -186,7 +218,6 @@ export const ProfileScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Category Indicator Pill */}
           <div className="flex items-center gap-2 bg-paper px-3 py-1.5 rounded-full border border-slate-light text-xs font-mono text-slate">
             <span>Account Status:</span>
             <span className="text-route font-semibold">Verified Member</span>
@@ -207,7 +238,7 @@ export const ProfileScreen: React.FC = () => {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            1. Profile
+            Profile
           </button>
 
           <button
@@ -222,7 +253,7 @@ export const ProfileScreen: React.FC = () => {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
-            2. Travel Preferences
+            Travel Preferences
           </button>
         </div>
 
@@ -235,7 +266,7 @@ export const ProfileScreen: React.FC = () => {
               <div>
                 <h3 className="font-serif text-xl font-bold text-ink">Personal Profile Details</h3>
                 <p className="font-sans text-xs text-slate mt-0.5">
-                  Manage your personal information, description, and travel interests.
+                  Manage your personal information, description, and contact info.
                 </p>
               </div>
               <Button
@@ -301,33 +332,6 @@ export const ProfileScreen: React.FC = () => {
                     <span className="font-mono text-[10px] text-slate mt-4 self-end">
                       Visible to travel group members &amp; solo matches
                     </span>
-                  </div>
-                </div>
-
-                {/* Interests & Hash Tags Card */}
-                <div className="bg-card border border-slate-light rounded-[14px] p-6 shadow-xs flex flex-col gap-4 md:col-span-2">
-                  <div className="flex items-center justify-between border-b border-slate-light/70 pb-2">
-                    <h4 className="font-serif text-base font-bold text-ink flex items-center gap-2">
-                      <svg className="w-4 h-4 text-route" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                      </svg>
-                      Interests and Hash Tags
-                    </h4>
-                    <span className="text-xs font-mono text-slate">
-                      {profile.interests.length} topics selected
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2.5">
-                    {profile.interests.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1.5 rounded-full bg-paper border border-slate-light text-xs font-mono font-medium text-ink flex items-center gap-1 shadow-2xs hover:border-route transition-all"
-                      >
-                        <span className="text-route font-bold">#</span>
-                        {tag}
-                      </span>
-                    ))}
                   </div>
                 </div>
               </div>
@@ -401,55 +405,6 @@ export const ProfileScreen: React.FC = () => {
                       required
                     />
                   </div>
-
-                  {/* Edit Interests & Hashtags */}
-                  <div className="flex flex-col gap-2.5 sm:col-span-2">
-                    <label className="text-xs font-mono font-medium text-slate">
-                      Interests and Hash Tags (Click cross to remove or add below)
-                    </label>
-                    <div className="flex flex-wrap gap-2 p-3 bg-paper rounded-lg border border-slate-light min-h-[46px]">
-                      {profileForm.interests.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2.5 py-1 rounded-full bg-card border border-slate-light text-xs font-mono text-ink flex items-center gap-1.5"
-                        >
-                          <span className="text-route font-bold">#{tag}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="text-slate hover:text-red-600 font-bold ml-0.5"
-                            title="Remove tag"
-                          >
-                            &times;
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Add new interest (e.g. ScubaDiving, Trekking)"
-                        value={newTagInput}
-                        onChange={(e) => setNewTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            handleAddTag()
-                          }
-                        }}
-                        className="flex-1 bg-paper border border-slate-light rounded-md px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-route"
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleAddTag}
-                        className="text-xs px-3 py-1.5"
-                      >
-                        + Add Tag
-                      </Button>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="flex justify-end items-center gap-3 pt-4 border-t border-slate-light">
@@ -482,7 +437,7 @@ export const ProfileScreen: React.FC = () => {
               <div>
                 <h3 className="font-serif text-xl font-bold text-ink">Travel Preferences</h3>
                 <p className="font-sans text-xs text-slate mt-0.5">
-                  Configure your preferred age group, trip execution mode, solo vs group matching, and special notes.
+                  Configure your preferred age group, travel mode, trip type, budget range, interests, and special notes.
                 </p>
               </div>
               <Button
@@ -500,11 +455,12 @@ export const ProfileScreen: React.FC = () => {
             {/* Read-Only Travel Preferences View */}
             {!isEditingPrefs ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 1. Same Age Group Preference */}
+                {/* • Age Group Preference */}
                 <div className="bg-card border border-slate-light rounded-[14px] p-6 shadow-xs flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold">
-                      1. Age Group Preference
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-route"></span>
+                      Same Age Group Matching
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-route/10 text-route border border-route/20">
                       {travelPrefs.ageGroupPreference === 'same_age' ? 'Same Age Group' : 'All Ages'}
@@ -517,16 +473,17 @@ export const ProfileScreen: React.FC = () => {
                   </h4>
                   <p className="font-sans text-xs text-slate leading-relaxed">
                     {travelPrefs.ageGroupPreference === 'same_age'
-                      ? 'You are matched with travelers in a similar peer age bracket for shared lifestyle pace and energy.'
-                      : 'You are excited to travel across multi-generational groups with diverse age brackets.'}
+                      ? 'Matched with travelers in a similar peer age bracket for shared lifestyle pace and energy.'
+                      : 'Open to travel across multi-generational groups with diverse age brackets.'}
                   </p>
                 </div>
 
-                {/* 2. Travel Mode: Admin-Led vs Non-Admin */}
+                {/* • Travel Mode */}
                 <div className="bg-card border border-slate-light rounded-[14px] p-6 shadow-xs flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold">
-                      2. Travel Mode
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      Travel Mode (Decision Style)
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300">
                       {travelPrefs.travelMode === 'mode_na'
@@ -552,11 +509,12 @@ export const ProfileScreen: React.FC = () => {
                   </p>
                 </div>
 
-                {/* 3. Solo or Group Trips */}
+                {/* • Solo or Group Trips */}
                 <div className="bg-card border border-slate-light rounded-[14px] p-6 shadow-xs flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold">
-                      3. Solo or Group Trips
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                      Solo or Group Trips
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-blue-100 text-blue-900 border border-blue-300">
                       {travelPrefs.tripType === 'both'
@@ -582,14 +540,74 @@ export const ProfileScreen: React.FC = () => {
                   </p>
                 </div>
 
-                {/* 4. Further Preferences Box */}
+                {/* • Budget Range */}
+                <div className="bg-card border border-slate-light rounded-[14px] p-6 shadow-xs flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      Budget Range
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                      {travelPrefs.budgetRange === 'budget'
+                        ? 'Budget ($)'
+                        : travelPrefs.budgetRange === 'mid'
+                        ? 'Mid-Range ($$)'
+                        : travelPrefs.budgetRange === 'luxury'
+                        ? 'Luxury ($$$)'
+                        : 'Flexible'}
+                    </span>
+                  </div>
+                  <h4 className="font-serif text-lg font-bold text-ink">
+                    {travelPrefs.budgetRange === 'budget'
+                      ? 'Budget ($20–$50 / day)'
+                      : travelPrefs.budgetRange === 'mid'
+                      ? 'Mid-Range ($50–$150 / day)'
+                      : travelPrefs.budgetRange === 'luxury'
+                      ? 'Luxury ($150+ / day)'
+                      : 'Flexible / Destination-dependent'}
+                  </h4>
+                  <p className="font-sans text-xs text-slate leading-relaxed">
+                    {travelPrefs.budgetRange === 'budget'
+                      ? 'Cost-conscious travel, hostels & cozy homestays, public transit, and delicious local street food.'
+                      : travelPrefs.budgetRange === 'mid'
+                      ? 'Balanced comfort with boutique hotels or beach cabins, cozy cafes, and occasional guided experiences.'
+                      : travelPrefs.budgetRange === 'luxury'
+                      ? 'Premium resorts, fine dining, private transportation, and seamless high-end travel experiences.'
+                      : 'Adaptable budget depending on group consensus, trip duration, and destination offerings.'}
+                  </p>
+                </div>
+
+                {/* • Interests and Hash Tags */}
+                <div className="bg-card border border-slate-light rounded-[14px] p-6 shadow-xs flex flex-col gap-4 md:col-span-2">
+                  <div className="flex items-center justify-between border-b border-slate-light/70 pb-2">
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                      Interests and Hash Tags
+                    </span>
+                    <span className="text-xs font-mono text-slate">
+                      {travelPrefs.interests.length} topics selected
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2.5">
+                    {travelPrefs.interests.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1.5 rounded-full bg-paper border border-slate-light text-xs font-mono font-medium text-ink flex items-center gap-1 shadow-2xs hover:border-route transition-all"
+                      >
+                        <span className="text-route font-bold">#</span>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* • Further Preferences Box */}
                 <div className="bg-card border border-slate-light rounded-[14px] p-6 shadow-xs flex flex-col gap-3 md:col-span-2">
                   <div className="flex items-center justify-between border-b border-slate-light/70 pb-2">
                     <span className="font-mono text-[11px] uppercase tracking-wider text-slate font-semibold flex items-center gap-1.5">
-                      <svg className="w-4 h-4 text-route" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      4. Further Preferences &amp; Special Notes
+                      <span className="w-1.5 h-1.5 rounded-full bg-route"></span>
+                      Further Preferences &amp; Special Notes
                     </span>
                     <span className="text-xs font-mono text-slate">Custom traveler notes</span>
                   </div>
@@ -612,10 +630,11 @@ export const ProfileScreen: React.FC = () => {
                   <span className="text-xs font-mono text-route font-semibold">Editing Mode Active</span>
                 </div>
 
-                {/* 1. Same Age Group Option */}
+                {/* • Same Age Group Option */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-mono font-medium text-slate uppercase">
-                    1. Same Age Group Matching
+                  <label className="text-xs font-mono font-semibold text-slate uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-route"></span>
+                    Same Age Group Matching
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label
@@ -672,10 +691,11 @@ export const ProfileScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 2. Travel Mode: Admin-Led vs Non-Admin */}
+                {/* • Travel Mode: Admin-Led vs Non-Admin */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-mono font-medium text-slate uppercase">
-                    2. Travel Mode (Decision Style)
+                  <label className="text-xs font-mono font-semibold text-slate uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Travel Mode (Decision Style)
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <label
@@ -740,10 +760,11 @@ export const ProfileScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 3. Solo or Group Trips */}
+                {/* • Solo or Group Trips */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-mono font-medium text-slate uppercase">
-                    3. Solo or Group Trips
+                  <label className="text-xs font-mono font-semibold text-slate uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    Solo or Group Trips
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <label
@@ -808,10 +829,150 @@ export const ProfileScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 4. Additional Box for Further Preferences */}
+                {/* • Budget Range (New Question) */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-mono font-medium text-slate uppercase">
-                    4. Further Preferences &amp; Special Notes
+                  <label className="text-xs font-mono font-semibold text-slate uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Budget Range
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        prefsForm.budgetRange === 'budget'
+                          ? 'border-route bg-route/5 ring-1 ring-route'
+                          : 'border-slate-light bg-paper hover:border-slate'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="budgetRange"
+                        checked={prefsForm.budgetRange === 'budget'}
+                        onChange={() => setPrefsForm({ ...prefsForm, budgetRange: 'budget' })}
+                        className="mt-0.5 text-route focus:ring-route"
+                      />
+                      <div className="flex flex-col text-xs">
+                        <span className="font-bold text-ink">Budget ($)</span>
+                        <span className="text-slate mt-0.5">$20–$50/day. Hostels &amp; public transit.</span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        prefsForm.budgetRange === 'mid'
+                          ? 'border-route bg-route/5 ring-1 ring-route'
+                          : 'border-slate-light bg-paper hover:border-slate'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="budgetRange"
+                        checked={prefsForm.budgetRange === 'mid'}
+                        onChange={() => setPrefsForm({ ...prefsForm, budgetRange: 'mid' })}
+                        className="mt-0.5 text-route focus:ring-route"
+                      />
+                      <div className="flex flex-col text-xs">
+                        <span className="font-bold text-ink">Mid-Range ($$)</span>
+                        <span className="text-slate mt-0.5">$50–$150/day. Cozy stays &amp; cafes.</span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        prefsForm.budgetRange === 'luxury'
+                          ? 'border-route bg-route/5 ring-1 ring-route'
+                          : 'border-slate-light bg-paper hover:border-slate'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="budgetRange"
+                        checked={prefsForm.budgetRange === 'luxury'}
+                        onChange={() => setPrefsForm({ ...prefsForm, budgetRange: 'luxury' })}
+                        className="mt-0.5 text-route focus:ring-route"
+                      />
+                      <div className="flex flex-col text-xs">
+                        <span className="font-bold text-ink">Luxury ($$$)</span>
+                        <span className="text-slate mt-0.5">$150+/day. Premium resorts &amp; private tours.</span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        prefsForm.budgetRange === 'flexible'
+                          ? 'border-route bg-route/5 ring-1 ring-route'
+                          : 'border-slate-light bg-paper hover:border-slate'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="budgetRange"
+                        checked={prefsForm.budgetRange === 'flexible'}
+                        onChange={() => setPrefsForm({ ...prefsForm, budgetRange: 'flexible' })}
+                        className="mt-0.5 text-route focus:ring-route"
+                      />
+                      <div className="flex flex-col text-xs">
+                        <span className="font-bold text-ink">Flexible</span>
+                        <span className="text-slate mt-0.5">Adaptable to the trip and destination.</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* • Interests & Hashtags (Moved to Travel Preferences) */}
+                <div className="flex flex-col gap-2.5">
+                  <label className="text-xs font-mono font-semibold text-slate uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    Interests and Hash Tags (Click cross to remove or add below)
+                  </label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-paper rounded-lg border border-slate-light min-h-[46px]">
+                    {prefsForm.interests.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2.5 py-1 rounded-full bg-card border border-slate-light text-xs font-mono text-ink flex items-center gap-1.5"
+                      >
+                        <span className="text-route font-bold">#{tag}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="text-slate hover:text-red-600 font-bold ml-0.5"
+                          title="Remove tag"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add new interest (e.g. ScubaDiving, Trekking, FoodTours)"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddTag()
+                        }
+                      }}
+                      className="flex-1 bg-paper border border-slate-light rounded-md px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-route"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleAddTag}
+                      className="text-xs px-3 py-1.5"
+                    >
+                      + Add Tag
+                    </Button>
+                  </div>
+                </div>
+
+                {/* • Additional Box for Further Preferences */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-mono font-semibold text-slate uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-route"></span>
+                    Further Preferences &amp; Special Notes
                   </label>
                   <textarea
                     rows={4}
