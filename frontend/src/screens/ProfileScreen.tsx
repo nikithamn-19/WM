@@ -687,16 +687,16 @@ export const ProfileScreen: React.FC = () => {
                     <span className="text-[11px] font-mono text-slate">Straight Ahead View</span>
                   </div>
 
-                  {/* Angle 2: Left Side Profile */}
+                  {/* Angle 2: Left Face Profile */}
                   <div className="flex flex-col items-center text-center p-4 bg-paper rounded-[12px] border border-slate-light/80 gap-3">
                     <span className="font-mono text-xs font-bold text-ink uppercase tracking-wide">
-                      2. Left Side Profile
+                      2. Left Face Profile
                     </span>
                     <div className="w-32 h-32 rounded-[12px] overflow-hidden border-2 border-route/30 relative bg-paper shadow-2xs">
                       {faceData.leftPhoto ? (
                         <img
                           src={faceData.leftPhoto}
-                          alt="Left Side Profile"
+                          alt="Left Face Profile"
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -723,16 +723,16 @@ export const ProfileScreen: React.FC = () => {
                     <span className="text-[11px] font-mono text-slate">Left Angle (45°–90°)</span>
                   </div>
 
-                  {/* Angle 3: Right Side Profile */}
+                  {/* Angle 3: Right Face Profile */}
                   <div className="flex flex-col items-center text-center p-4 bg-paper rounded-[12px] border border-slate-light/80 gap-3">
                     <span className="font-mono text-xs font-bold text-ink uppercase tracking-wide">
-                      3. Right Side Profile
+                      3. Right Face Profile
                     </span>
                     <div className="w-32 h-32 rounded-[12px] overflow-hidden border-2 border-route/30 relative bg-paper shadow-2xs">
                       {faceData.rightPhoto ? (
                         <img
                           src={faceData.rightPhoto}
-                          alt="Right Side Profile"
+                          alt="Right Face Profile"
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -782,7 +782,7 @@ export const ProfileScreen: React.FC = () => {
                       Upload Face Angles &amp; Register
                     </h4>
                     <p className="font-sans text-xs text-slate mt-0.5">
-                      Please upload or capture all 3 angles: front face, left profile, and right profile.
+                      Please upload or capture all 3 angles: front face, left face profile, and right face profile.
                     </p>
                   </div>
                   <span className="text-xs font-mono text-route font-semibold">Editing Mode Active</span>
@@ -798,18 +798,18 @@ export const ProfileScreen: React.FC = () => {
                     onRemove={() => setFaceForm((prev) => ({ ...prev, straightPhoto: '' }))}
                   />
 
-                  {/* Left Side Profile Capture */}
+                  {/* Left Face Profile Capture */}
                   <FaceUploadCard
-                    title="2. Left Profile"
+                    title="2. Left Face Profile"
                     subtitle="Turn head 45° to 90° left"
                     photoUrl={faceForm.leftPhoto}
                     onFileSelected={(dataUrl) => setFaceForm((prev) => ({ ...prev, leftPhoto: dataUrl }))}
                     onRemove={() => setFaceForm((prev) => ({ ...prev, leftPhoto: '' }))}
                   />
 
-                  {/* Right Side Profile Capture */}
+                  {/* Right Face Profile Capture */}
                   <FaceUploadCard
-                    title="3. Right Profile"
+                    title="3. Right Face Profile"
                     subtitle="Turn head 45° to 90° right"
                     photoUrl={faceForm.rightPhoto}
                     onFileSelected={(dataUrl) => setFaceForm((prev) => ({ ...prev, rightPhoto: dataUrl }))}
